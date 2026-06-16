@@ -61,15 +61,15 @@ public class GiftPlan {
     @Column(columnDefinition = "text")
     private String recommendationSummary;
 
-    @ManyToOne
-    @JoinColumn(name = "selected_gift_idea_id")
-    private GiftIdeaRecommendation selectedGiftIdea;
-
     @Column(updatable = false, columnDefinition = "datetime not null")
     private LocalDateTime createdAt;
 
     @Column(columnDefinition = "datetime not null")
     private LocalDateTime updatedAt;
+
+    @ManyToOne
+    @JoinColumn(name = "selected_gift_idea_id")
+    private GiftIdeaRecommendation selectedGiftIdea;
 
     @OneToMany(mappedBy = "giftPlan", cascade = CascadeType.ALL)
     @JsonIgnore
