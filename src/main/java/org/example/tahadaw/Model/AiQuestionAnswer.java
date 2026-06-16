@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -29,5 +30,5 @@ public class AiQuestionAnswer {
     private String answerText;
 
     @Column(updatable = false, columnDefinition = "datetime not null")
-    private LocalDateTime createdAt;
+    private LocalDate createdAt;
 }
