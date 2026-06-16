@@ -21,7 +21,7 @@ public class AiQuestionService {
     //shahad-CRUD
 
     public void createAiQuestion(Long gifPlanId, AiGeneratedQuestionDTOIn request) {
-        GiftPlan giftPlan = giftPlanRepository.findGiftPlanById(gifPlanId);
+        GiftPlan giftPlan = giftPlanRepository.findGiftPlanById(gifPlanId).orElse(null);
         if (giftPlan == null) {
             throw new IllegalArgumentException("Gift plan not found");
         }
@@ -55,7 +55,7 @@ public class AiQuestionService {
 
 
     public AiGeneratedQuestion getAiQuestionById(Long id) {
-        AiGeneratedQuestion aiGeneratedQuestion = aiGeneratedQuestionRepository.findAiGeneratedQuestionById(id);
+        AiGeneratedQuestion aiGeneratedQuestion = aiGeneratedQuestionRepository.findAiGeneratedQuestionById(id).orElse(null);
         if (aiGeneratedQuestion == null) {
             throw new IllegalArgumentException("Ai question not found");
         }

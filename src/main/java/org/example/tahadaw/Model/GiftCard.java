@@ -33,8 +33,8 @@ public class GiftCard {
     @JsonIgnore
     private GiftPlan giftPlan;
 
-    @ManyToOne
-    @JoinColumn(name = "gift_message_id")
+    @OneToOne
+    @JoinColumn(name = "gift_message_id", unique = true)
     private GiftMessage giftMessage;
 
     @Column(columnDefinition = "varchar(100) not null")

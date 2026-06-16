@@ -50,9 +50,8 @@ public class ProductSearchService {
 
     @Value("${searchapi.hl:en}")
     private String languageCode;
-
     public List<ProductSearchResultDTOOut> searchProducts(Long giftPlanId) {
-        GiftPlan giftPlan = giftPlanRepository.findById(giftPlanId)
+        GiftPlan giftPlan = giftPlanRepository.findGiftPlanById(giftPlanId)
                 .orElseThrow(() -> new ApiException("Gift plan not found."));
 
         GiftIdeaRecommendation selectedIdea = giftIdeaRecommendationRepository
@@ -107,7 +106,7 @@ public class ProductSearchService {
 
     @Transactional
     public SelectedProductDTOOut selectProduct(Long giftPlanId, ProductSelectDTOIn request) {
-        GiftPlan giftPlan = giftPlanRepository.findById(giftPlanId)
+        GiftPlan giftPlan = giftPlanRepository.findGiftPlanById(giftPlanId)
                 .orElseThrow(() -> new ApiException("Gift plan not found."));
 
         GiftIdeaRecommendation selectedIdea = giftIdeaRecommendationRepository
@@ -138,7 +137,7 @@ public class ProductSearchService {
     }
 
     public SelectedProductDTOOut getSelectedProduct(Long giftPlanId) {
-        GiftPlan giftPlan = giftPlanRepository.findById(giftPlanId)
+        GiftPlan giftPlan = giftPlanRepository.findGiftPlanById(giftPlanId)
                 .orElseThrow(() -> new ApiException("Gift plan not found."));
 
         GiftIdeaRecommendation selectedIdea = giftIdeaRecommendationRepository

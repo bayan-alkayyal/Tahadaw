@@ -7,5 +7,7 @@ import java.util.Optional;
 
 public interface GroupGiftInviteRepository extends JpaRepository<GroupGiftInvite, Long> {
 
+    Optional<GroupGiftInvite> findGroupGiftInviteById(Long id);
+
     Optional<GroupGiftInvite> findByToken(String token);
 }

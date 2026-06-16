@@ -8,5 +8,7 @@ import java.util.Optional;
 
 public interface PremiumAccessRepository extends JpaRepository<PremiumAccess, Long> {
 
+    Optional<PremiumAccess> findPremiumAccessById(Long id);
+
     Optional<PremiumAccess> findByUser(User user);
 }

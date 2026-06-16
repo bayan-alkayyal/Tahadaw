@@ -24,7 +24,7 @@ public class PremiumService {
     private final PremiumAccessRepository premiumAccessRepository;
 
     public PremiumStatusDTOOut getPremiumStatus(Long userId) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findUserById(userId)
                 .orElseThrow(() -> new ApiException("User not found."));
 
         if (!Boolean.TRUE.equals(user.getIsPremium())) {

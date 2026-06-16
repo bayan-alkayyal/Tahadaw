@@ -10,6 +10,10 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(uniqueConstraints = @UniqueConstraint(
+        name = "uk_required_answer_plan_question",
+        columnNames = {"gift_plan_id", "required_question_id"}
+))
 @Getter
 @Setter
 @NoArgsConstructor

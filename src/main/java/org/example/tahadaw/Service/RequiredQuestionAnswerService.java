@@ -23,7 +23,7 @@ public class RequiredQuestionAnswerService {
     //shahad-CRUD
 
     public void createRequiredQuestionAnswer(Long requiredQuestionId, RequiredQuestionAnswerDTOIn request) {
-        RequiredQuestion requiredQuestion = requiredQuestionRepository.findRequiredQuestionById(requiredQuestionId);
+        RequiredQuestion requiredQuestion = requiredQuestionRepository.findRequiredQuestionById(requiredQuestionId).orElse(null);
         if (requiredQuestion == null) {
             throw new IllegalArgumentException("Question not found");
         }
@@ -54,7 +54,7 @@ public class RequiredQuestionAnswerService {
 
 
     public RequiredQuestionAnswer getRequiredQuestionAnswerById(Long id) {
-        RequiredQuestionAnswer requiredQuestionAnswer = requiredQuestionAnswerRepository.findRequiredQuestionAnswerById(id);
+        RequiredQuestionAnswer requiredQuestionAnswer = requiredQuestionAnswerRepository.findRequiredQuestionAnswerById(id).orElse(null);
         if (requiredQuestionAnswer == null) {
             throw new IllegalArgumentException("Answer not found");
         }

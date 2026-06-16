@@ -24,7 +24,7 @@ public class AiAnswerService {
     //shahad-CRUD
 
     public void createAiAnswer(Long aiQuestionId, AiQuestionAnswerDTOIn request) {
-        AiGeneratedQuestion aiGeneratedQuestion = aiGeneratedQuestionRepository.findAiGeneratedQuestionById(aiQuestionId);
+        AiGeneratedQuestion aiGeneratedQuestion = aiGeneratedQuestionRepository.findAiGeneratedQuestionById(aiQuestionId).orElse(null);
         if (aiGeneratedQuestion == null) {
             throw new ApiException("Ai question not found");
         }
@@ -55,7 +55,7 @@ public class AiAnswerService {
 
 
     public AiQuestionAnswer getAiQuestionAnswerById(Long id) {
-        AiQuestionAnswer aiQuestionAnswer = aiQuestionAnswerRepository.findAiQuestionAnswerById(id);
+        AiQuestionAnswer aiQuestionAnswer = aiQuestionAnswerRepository.findAiQuestionAnswerById(id).orElse(null);
         if (aiQuestionAnswer == null) {
             throw new ApiException("Ai Answer not found");
         }

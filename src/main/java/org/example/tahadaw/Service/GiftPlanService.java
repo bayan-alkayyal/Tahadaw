@@ -27,11 +27,11 @@ public class GiftPlanService {
     }
 
     public void createGiftPlan(Long userId, Long recipientId, GiftPlanDTOIn request) {
-        User user = userRepository.findUserById(userId);
+        User user = userRepository.findUserById(userId).orElse(null);
         if (user == null) {
             throw new IllegalArgumentException("User not found");
         }
-        Recipient recipient = recipientRepository.findRecipientById(recipientId);
+        Recipient recipient = recipientRepository.findRecipientById(recipientId).orElse(null);
         if (recipient == null) {
             throw new IllegalArgumentException("Recipient not found");
         }
@@ -66,7 +66,7 @@ public class GiftPlanService {
     }
 
     public GiftPlan getGiftPlanById(Long id) {
-        GiftPlan giftPlan = giftPlanRepository.findGiftPlanById(id);
+        GiftPlan giftPlan = giftPlanRepository.findGiftPlanById(id).orElse(null);
         if (giftPlan == null) {
             throw new IllegalArgumentException("Gift plan not found");
         }

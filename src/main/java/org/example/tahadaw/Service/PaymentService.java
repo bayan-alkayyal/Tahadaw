@@ -42,7 +42,7 @@ public class PaymentService {
 
     @Transactional
     public PaymentDTOOut processPremiumPayment(MoyasarCardPaymentDTOIn request) {
-        User user = userRepository.findById(request.getUserId())
+        User user = userRepository.findUserById(request.getUserId())
                 .orElseThrow(() -> new ApiException("User not found."));
 
         if (Boolean.TRUE.equals(user.getIsPremium())) {
@@ -93,7 +93,7 @@ public class PaymentService {
     }
 
     public List<PaymentDTOOut> getMyPayments(Long userId) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findUserById(userId)
                 .orElseThrow(() -> new ApiException("User not found."));
 
         return paymentRepository.findByUserOrderByCreatedAtDesc(user).stream()
