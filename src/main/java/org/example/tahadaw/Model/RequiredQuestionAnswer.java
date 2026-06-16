@@ -29,8 +29,8 @@ public class RequiredQuestionAnswer {
     @JsonIgnore
     private GiftPlan giftPlan;
 
-    @OneToOne
-    @JsonIgnore
+    @ManyToOne
+    @JoinColumn(name = "required_question_id", nullable = false)
     private RequiredQuestion requiredQuestion;
 
     @Column(columnDefinition = "text not null")

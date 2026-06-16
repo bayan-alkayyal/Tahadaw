@@ -1,15 +1,19 @@
 package org.example.tahadaw.Service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.tahadaw.Api.ApiException;
 import org.example.tahadaw.DTO.IN.GiftPlanDTOIn;
 import org.example.tahadaw.Model.GiftPlan;
 import org.example.tahadaw.Model.Recipient;
 import org.example.tahadaw.Model.User;
+import org.example.tahadaw.Model.enums.GiftPlanStatus;
 import org.example.tahadaw.Repository.GiftPlanRepository;
 import org.example.tahadaw.Repository.RecipientRepository;
 import org.example.tahadaw.Repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -20,22 +24,20 @@ public class GiftPlanService {
     private final UserRepository userRepository;
     private final RecipientRepository recipientRepository;
 
-    //shahad-CRUD
+    public List<GiftPlan> listByUser(Long userId) {
+        userRepository.findUserById(userId)
+                .orElseThrow(() -> new ApiException("User not found."));
 
-    public List<GiftPlan> getAllGiftPlan() {
-        return giftPlanRepository.findAll();
+        return giftPlanRepository.findByUser_IdOrderByCreatedAtDesc(userId);
     }
 
-    public void createGiftPlan(Long userId, Long recipientId, GiftPlanDTOIn request) {
-        User user = userRepository.findUserById(userId).orElse(null);
-        if (user == null) {
-            throw new IllegalArgumentException("User not found");
-        }
-        Recipient recipient = recipientRepository.findRecipientById(recipientId).orElse(null);
-        if (recipient == null) {
-            throw new IllegalArgumentException("Recipient not found");
-        }
+    @Transactional
+    public GiftPlan createGiftPlan(Long userId, Long recipientId, GiftPlanDTOIn request) {
+        User user = userRepository.findUserById(userId)
+                .orElseThrow(() -> new ApiException("User not found."));
+        Recipient recipient = requireOwnedRecipient(userId, recipientId);
 
+        LocalDateTime now = LocalDateTime.now();
         GiftPlan giftPlan = new GiftPlan();
         giftPlan.setOccasionType(request.getOccasionType());
         giftPlan.setOccasionDate(request.getOccasionDate());
@@ -43,34 +45,56 @@ public class GiftPlanService {
         giftPlan.setCurrency(request.getCurrency());
         giftPlan.setPreferredGiftStyle(request.getPreferredGiftStyle());
         giftPlan.setLanguage(request.getLanguage());
+        giftPlan.setStatus(GiftPlanStatus.CREATED);
         giftPlan.setUser(user);
         giftPlan.setRecipient(recipient);
+        giftPlan.setCreatedAt(now);
+        giftPlan.setUpdatedAt(now);
 
-        giftPlanRepository.save(giftPlan);
+        return giftPlanRepository.save(giftPlan);
     }
 
-    public void updateGiftPlan(Long id, GiftPlanDTOIn request) {
-        GiftPlan oldGiftPlan = getGiftPlanById(id);
-        oldGiftPlan.setOccasionType(request.getOccasionType());
-        oldGiftPlan.setOccasionDate(request.getOccasionDate());
-        oldGiftPlan.setBudgetMinor(request.getBudgetMinor());
-        oldGiftPlan.setCurrency(request.getCurrency());
-        oldGiftPlan.setPreferredGiftStyle(request.getPreferredGiftStyle());
-        oldGiftPlan.setLanguage(request.getLanguage());
-        giftPlanRepository.save(oldGiftPlan);
+    @Transactional
+    public GiftPlan updateGiftPlan(Long userId, Long id, GiftPlanDTOIn request) {
+        GiftPlan giftPlan = requireOwnedGiftPlan(userId, id);
+        giftPlan.setOccasionType(request.getOccasionType());
+        giftPlan.setOccasionDate(request.getOccasionDate());
+        giftPlan.setBudgetMinor(request.getBudgetMinor());
+        giftPlan.setCurrency(request.getCurrency());
+        giftPlan.setPreferredGiftStyle(request.getPreferredGiftStyle());
+        giftPlan.setLanguage(request.getLanguage());
+        giftPlan.setUpdatedAt(LocalDateTime.now());
+        return giftPlanRepository.save(giftPlan);
     }
 
-    public void deleteGiftPlan(Long id) {
-        GiftPlan giftPlan = getGiftPlanById(id);
+    @Transactional
+    public void deleteGiftPlan(Long userId, Long id) {
+        GiftPlan giftPlan = requireOwnedGiftPlan(userId, id);
         giftPlanRepository.delete(giftPlan);
     }
 
-    public GiftPlan getGiftPlanById(Long id) {
-        GiftPlan giftPlan = giftPlanRepository.findGiftPlanById(id).orElse(null);
-        if (giftPlan == null) {
-            throw new IllegalArgumentException("Gift plan not found");
+    public GiftPlan getGiftPlanById(Long userId, Long id) {
+        return requireOwnedGiftPlan(userId, id);
+    }
+
+    private Recipient requireOwnedRecipient(Long userId, Long recipientId) {
+        Recipient recipient = recipientRepository.findRecipientById(recipientId)
+                .orElseThrow(() -> new ApiException("Recipient not found."));
+        if (!recipient.getUser().getId().equals(userId)) {
+            throw new ApiException("Recipient not found.");
+        }
+        return recipient;
+    }
+
+    private GiftPlan requireOwnedGiftPlan(Long userId, Long giftPlanId) {
+        GiftPlan giftPlan = giftPlanRepository.findGiftPlanById(giftPlanId)
+                .orElseThrow(() -> new ApiException("Gift plan not found."));
+        if (!giftPlan.getUser().getId().equals(userId)) {
+            throw new ApiException("Gift plan not found.");
+        }
+        if (!giftPlan.getRecipient().getUser().getId().equals(userId)) {
+            throw new ApiException("Recipient must belong to the gift plan owner.");
         }
         return giftPlan;
     }
-
 }

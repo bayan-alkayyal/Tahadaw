@@ -41,10 +41,7 @@ public class RequiredQuestion {
     @Column(columnDefinition = "datetime not null")
     private LocalDateTime updatedAt;
 
-    @OneToOne(mappedBy = "requiredQuestion", cascade = CascadeType.ALL)
-    private RequiredQuestionAnswer answer;
-
-//    @OneToMany(mappedBy = "requiredQuestion", cascade = CascadeType.ALL)
-//    @JsonIgnore
-//    private Set<RequiredQuestionAnswer> answers;
+    @OneToMany(mappedBy = "requiredQuestion", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private Set<RequiredQuestionAnswer> answers;
 }
