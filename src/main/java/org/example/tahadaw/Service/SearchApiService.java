@@ -69,13 +69,16 @@ public class SearchApiService {
             throw new ApiException("No results found for " + productName);
         }
 
-        List<ShoppingResult> dtos = response.getShoppingResults().stream().limit(Math.min(5,response.getShoppingResults().size())).toList();
+        List<ShoppingResult> dtos = response.getShoppingResults().stream()
+                .limit(Math.min(5, response.getShoppingResults().size()))
+                .toList();
         List<SelectedProduct> selectedProduct = new ArrayList<>();
 
         System.out.println(dtos);
         for (ShoppingResult dto : dtos) {
             SelectedProduct selectedProduct1=toDto(dto);
             selectedProduct.add(selectedProduct1);
+            selectedProduct1.setGiftIdeaRecommendation(selectedIdea);
            selectedProductRepository.save(selectedProduct1);
         }
 
@@ -94,6 +97,7 @@ public class SearchApiService {
         selected.setProductUrl(r.getProductLink());
         selected.setStoreName(r.getSeller());
         selected.setRating(r.getRating());
+        selected.setIsSelected(false);
         return selected;
     }
 }
