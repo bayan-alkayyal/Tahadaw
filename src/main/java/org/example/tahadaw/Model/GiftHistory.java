@@ -34,6 +34,10 @@ public class GiftHistory {
     @JoinColumn(name = "gift_idea_recommendation_id", unique = true)
     private GiftIdeaRecommendation giftIdeaRecommendation;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "selected_product_id", unique = true)
+    private SelectedProduct selectedProduct;
+
     @Column(columnDefinition = "varchar(200) not null")
     private String giftName;
 

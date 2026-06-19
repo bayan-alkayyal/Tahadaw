@@ -45,6 +45,12 @@ public class GiftCardController {
         return ResponseEntity.ok(giftCardService.update(userId, giftCardId, request));
     }
 
+    @PostMapping("/{giftCardId}/regenerate")
+    public ResponseEntity<GiftCardDTOOut> regenerate(@RequestParam Long userId,
+                                                     @PathVariable Long giftCardId) {
+        return ResponseEntity.ok(giftCardService.regenerate(userId, giftCardId));
+    }
+
     @GetMapping(value = "/{giftCardId}/image", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> viewImage(@RequestParam Long userId,
                                             @PathVariable Long giftCardId) {

@@ -79,6 +79,10 @@ public class Recipient {
 
     @OneToMany(mappedBy = "recipient", cascade = CascadeType.ALL)
     @JsonIgnore
+    private Set<SelectedProduct> selectedProducts;
+
+    @OneToMany(mappedBy = "recipient", cascade = CascadeType.ALL)
+    @JsonIgnore
     private Set<GroupGift> groupGifts;
 
     @OneToMany(mappedBy = "recipient", cascade = CascadeType.ALL)

@@ -6,6 +6,7 @@ import org.example.tahadaw.AI.AiService;
 import org.example.tahadaw.Api.ApiException;
 import org.example.tahadaw.DTO.IN.GiftMessageCreateDTOIn;
 import org.example.tahadaw.DTO.IN.GiftMessageGenerateDTOIn;
+import org.example.tahadaw.DTO.IN.GiftMessageUpdateDTOIn;
 import org.example.tahadaw.DTO.OUT.GiftMessageDTOOut;
 import org.example.tahadaw.Model.GiftIdeaRecommendation;
 import org.example.tahadaw.Model.GiftMessage;
@@ -84,6 +85,38 @@ public class GiftMessageService {
         giftMessage.setLanguage(language);
         giftMessage.setMessageText(text);
         giftMessage.setCreatedAt(LocalDateTime.now());
+
+        return toDto(giftMessageRepository.save(giftMessage));
+    }
+
+    /**
+     * Edit an existing message (AI or manual). Blocked once the message is locked into a gift card.
+     */
+    @Transactional
+    public GiftMessageDTOOut update(Long userId, Long giftPlanId, Long messageId, GiftMessageUpdateDTOIn request) {
+        GiftPlan giftPlan = requireOwnedGiftPlan(userId, giftPlanId);
+        GiftMessage giftMessage = giftMessageRepository.findGiftMessageById(messageId)
+                .orElseThrow(() -> new ApiException("Gift message not found."));
+        if (!giftMessage.getGiftPlan().getId().equals(giftPlan.getId())) {
+            throw new ApiException("Gift message not found.");
+        }
+        if (giftMessage.getGiftCard() != null) {
+            throw new ApiException("This message is already used by a gift card and can't be edited. "
+                    + "Regenerate the card instead.");
+        }
+
+        if (request.getMessageText() != null) {
+            if (request.getMessageText().isBlank()) {
+                throw new ApiException("Message text cannot be blank.");
+            }
+            giftMessage.setMessageText(request.getMessageText().trim());
+        }
+        if (request.getTone() != null && !request.getTone().isBlank()) {
+            giftMessage.setTone(request.getTone().trim());
+        }
+        if (request.getLanguage() != null && !request.getLanguage().isBlank()) {
+            giftMessage.setLanguage(request.getLanguage().trim());
+        }
 
         return toDto(giftMessageRepository.save(giftMessage));
     }

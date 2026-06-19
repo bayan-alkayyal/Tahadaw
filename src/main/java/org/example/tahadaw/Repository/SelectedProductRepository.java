@@ -28,4 +28,8 @@ public interface SelectedProductRepository extends JpaRepository<SelectedProduct
     
     List<SelectedProduct> findSelectedProductByGiftIdeaRecommendation(GiftIdeaRecommendation giftIdeaRecommendation);
 
+    List<SelectedProduct> findByUser_IdAndIsSelectedTrueOrderByCreatedAtDesc(Long userId);
+
+    List<SelectedProduct> findByRecipient_IdAndIsSelectedTrueOrderByCreatedAtDesc(Long recipientId);
+
 }

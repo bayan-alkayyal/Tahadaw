@@ -60,6 +60,10 @@ public class User {
     @JsonIgnore
     private Set<GiftHistory> giftHistories;
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private Set<SelectedProduct> selectedProducts;
+
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL)
     @JsonIgnore
     private Set<GroupGift> groupGifts;

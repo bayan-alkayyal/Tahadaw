@@ -25,6 +25,20 @@ public class SelectedProduct {
     @JsonIgnore
     private GiftIdeaRecommendation giftIdeaRecommendation;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    @JsonIgnore
+    private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recipient_id")
+    @JsonIgnore
+    private Recipient recipient;
+
+    @OneToOne(mappedBy = "selectedProduct", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private GiftHistory giftHistory;
+
     @Column(columnDefinition = "varchar(300) not null")
     private String productName;
 

@@ -157,6 +157,13 @@ public class GiftCardService {
     }
 
     @Transactional
+    public GiftCardDTOOut regenerate(Long userId, Long giftCardId) {
+        GiftCard giftCard = requireOwnedGiftCard(userId, giftCardId);
+        renderImages(giftCard);
+        return toDto(giftCardRepository.save(giftCard));
+    }
+
+    @Transactional
     public byte[] getCardImage(Long userId, Long giftCardId) {
         GiftCard giftCard = requireOwnedGiftCard(userId, giftCardId);
         if (giftCard.getGiftCardImage() == null || giftCard.getGiftCardImage().length == 0) {

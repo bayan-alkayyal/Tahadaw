@@ -5,6 +5,7 @@ import org.example.tahadaw.AI.AiJsonParser;
 import org.example.tahadaw.AI.AiService;
 import org.example.tahadaw.Api.ApiException;
 import org.example.tahadaw.DTO.IN.SurprisePlanGenerateDTOIn;
+import org.example.tahadaw.DTO.IN.SurprisePlanUpdateDTOIn;
 import org.example.tahadaw.DTO.OUT.SurprisePlanDTOOut;
 import org.example.tahadaw.Model.GiftIdeaRecommendation;
 import org.example.tahadaw.Model.GiftPlan;
@@ -43,21 +44,89 @@ public class SurprisePlanService {
             throw new ApiException("Surprise plan already generated for this gift plan.");
         }
 
-        String language = resolveLanguage(request, giftPlan);
+        SurprisePlan surprisePlan = new SurprisePlan();
+        surprisePlan.setGiftPlan(giftPlan);
+        surprisePlan.setCreatedAt(LocalDateTime.now());
+        applyAiFields(surprisePlan, giftPlan, selectedIdea, resolveLanguage(request, giftPlan));
+
+        return toDto(surprisePlanRepository.save(surprisePlan));
+    }
+
+    /**
+     * Re-run the AI for an existing plan (or create one if none exists yet).
+     */
+    @Transactional
+    public SurprisePlanDTOOut regenerate(Long userId, Long giftPlanId, SurprisePlanGenerateDTOIn request) {
+        GiftPlan giftPlan = requireOwnedGiftPlan(userId, giftPlanId);
+        premiumService.requirePremium(giftPlan.getUser());
+
+        GiftIdeaRecommendation selectedIdea = giftIdeaRecommendationRepository
+                .findByGiftPlanAndIsSelectedTrue(giftPlan)
+                .orElseThrow(() -> new ApiException("Select an AI gift idea before generating a surprise plan."));
+
+        SurprisePlan surprisePlan = surprisePlanRepository.findByGiftPlan_Id(giftPlanId)
+                .orElseGet(() -> {
+                    SurprisePlan created = new SurprisePlan();
+                    created.setGiftPlan(giftPlan);
+                    created.setCreatedAt(LocalDateTime.now());
+                    return created;
+                });
+
+        applyAiFields(surprisePlan, giftPlan, selectedIdea, resolveLanguage(request, giftPlan));
+
+        return toDto(surprisePlanRepository.save(surprisePlan));
+    }
+
+    /**
+     * Manual edit of an existing surprise plan (no AI). Only non-null fields are applied.
+     */
+    @Transactional
+    public SurprisePlanDTOOut update(Long userId, Long giftPlanId, SurprisePlanUpdateDTOIn request) {
+        requireOwnedGiftPlan(userId, giftPlanId);
+        SurprisePlan surprisePlan = surprisePlanRepository.findByGiftPlan_Id(giftPlanId)
+                .orElseThrow(() -> new ApiException("No surprise plan found for this gift plan."));
+
+        if (request.getPlanTitle() != null && !request.getPlanTitle().isBlank()) {
+            surprisePlan.setPlanTitle(request.getPlanTitle().trim());
+        }
+        if (request.getSteps() != null && !request.getSteps().isBlank()) {
+            surprisePlan.setSteps(request.getSteps().trim());
+        }
+        if (request.getRequiredItems() != null) {
+            surprisePlan.setRequiredItems(request.getRequiredItems());
+        }
+        if (request.getTimingSuggestion() != null) {
+            surprisePlan.setTimingSuggestion(request.getTimingSuggestion());
+        }
+        if (request.getBackupPlan() != null) {
+            surprisePlan.setBackupPlan(request.getBackupPlan());
+        }
+        if (request.getAiExplanation() != null) {
+            surprisePlan.setAiExplanation(request.getAiExplanation());
+        }
+
+        return toDto(surprisePlanRepository.save(surprisePlan));
+    }
+
+    @Transactional
+    public void delete(Long userId, Long giftPlanId) {
+        requireOwnedGiftPlan(userId, giftPlanId);
+        SurprisePlan surprisePlan = surprisePlanRepository.findByGiftPlan_Id(giftPlanId)
+                .orElseThrow(() -> new ApiException("No surprise plan found for this gift plan."));
+        surprisePlanRepository.delete(surprisePlan);
+    }
+
+    private void applyAiFields(SurprisePlan surprisePlan, GiftPlan giftPlan,
+                               GiftIdeaRecommendation selectedIdea, String language) {
         String prompt = buildPrompt(giftPlan, selectedIdea, language);
         JsonNode aiResponse = AiJsonParser.parseObject(aiService.ask(prompt));
 
-        SurprisePlan surprisePlan = new SurprisePlan();
-        surprisePlan.setGiftPlan(giftPlan);
         surprisePlan.setPlanTitle(AiJsonParser.requireText(aiResponse, "planTitle"));
         surprisePlan.setSteps(AiJsonParser.requireText(aiResponse, "steps"));
         surprisePlan.setRequiredItems(AiJsonParser.optionalText(aiResponse, "requiredItems"));
         surprisePlan.setTimingSuggestion(AiJsonParser.optionalText(aiResponse, "timingSuggestion"));
         surprisePlan.setBackupPlan(AiJsonParser.optionalText(aiResponse, "backupPlan"));
         surprisePlan.setAiExplanation(AiJsonParser.optionalText(aiResponse, "aiExplanation"));
-        surprisePlan.setCreatedAt(LocalDateTime.now());
-
-        return toDto(surprisePlanRepository.save(surprisePlan));
     }
 
     public SurprisePlanDTOOut getByGiftPlan(Long userId, Long giftPlanId) {

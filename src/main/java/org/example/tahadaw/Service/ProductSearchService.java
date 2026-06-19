@@ -172,6 +172,8 @@ public class ProductSearchService {
         giftPlan.setSelectedProduct(selectedProduct);
         selectedProduct.setIsSelected(true);
         selectedProduct.setGiftPlan(giftPlan);
+        selectedProduct.setUser(giftPlan.getUser());
+        selectedProduct.setRecipient(giftPlan.getRecipient());
         selectedProductRepository.save(selectedProduct);
         selectedProductRepository.deleteSelectedProductsByGiftIdeaRecommendation(recommendation);
         if (giftPlan.getStatus() == "GIFT_IDEA_SELECTED") {

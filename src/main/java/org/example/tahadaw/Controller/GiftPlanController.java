@@ -5,16 +5,17 @@ import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.Api.ApiResponse;
 import org.example.tahadaw.DTO.IN.GiftMessageCreateDTOIn;
 import org.example.tahadaw.DTO.IN.GiftMessageGenerateDTOIn;
+import org.example.tahadaw.DTO.IN.GiftMessageUpdateDTOIn;
 import org.example.tahadaw.DTO.IN.GiftPlanDTOIn;
 import org.example.tahadaw.DTO.IN.ProductSelectDTOIn;
 import org.example.tahadaw.DTO.IN.AiQuestionAnswersSubmitDTOIn;
 import org.example.tahadaw.DTO.IN.GiftCardCreateDTOIn;
 import org.example.tahadaw.DTO.IN.RequiredQuestionAnswersSubmitDTOIn;
 import org.example.tahadaw.DTO.IN.SurprisePlanGenerateDTOIn;
+import org.example.tahadaw.DTO.IN.SurprisePlanUpdateDTOIn;
 import org.example.tahadaw.DTO.OUT.GiftCardDTOOut;
 import org.example.tahadaw.DTO.OUT.AiGeneratedQuestionDTOOut;
 import org.example.tahadaw.DTO.OUT.AiQuestionAnswerDTOOut;
-import org.example.tahadaw.DTO.OUT.GiftHistoryDTOOut;
 import org.example.tahadaw.DTO.OUT.GiftMessageDTOOut;
 import org.example.tahadaw.DTO.OUT.RequiredQuestionAnswerDTOOut;
 import org.example.tahadaw.DTO.OUT.RequiredQuestionDTOOut;
@@ -38,7 +39,6 @@ public class GiftPlanController {
     private final AiQuestionService aiQuestionService;
     private final ProductSearchService productSearchService;
     private final GiftMessageService giftMessageService;
-    private final GiftHistoryService giftHistoryService;
     private final SurprisePlanService surprisePlanService;
     private final GiftRecommendationService giftRecommendationService;
     private final GiftCardService giftCardService;
@@ -135,18 +135,18 @@ public class GiftPlanController {
         return ResponseEntity.ok(giftMessageService.createManual(userId, giftPlanId, request));
     }
 
+    @PutMapping("/{giftPlanId}/messages/{messageId}")
+    public ResponseEntity<GiftMessageDTOOut> editMessage(@RequestParam Long userId,
+                                                         @PathVariable Long giftPlanId,
+                                                         @PathVariable Long messageId,
+                                                         @Valid @RequestBody GiftMessageUpdateDTOIn request) {
+        return ResponseEntity.ok(giftMessageService.update(userId, giftPlanId, messageId, request));
+    }
+
     @GetMapping("/{giftPlanId}/messages")
     public ResponseEntity<List<GiftMessageDTOOut>> listMessages(@RequestParam Long userId,
                                                                 @PathVariable Long giftPlanId) {
         return ResponseEntity.ok(giftMessageService.listByGiftPlan(userId, giftPlanId));
-    }
-
-    // ===== History =====
-
-    @PostMapping("/{giftPlanId}/history")
-    public ResponseEntity<GiftHistoryDTOOut> saveHistoryFromPlan(@RequestParam Long userId,
-                                                                 @PathVariable Long giftPlanId) {
-        return ResponseEntity.ok(giftHistoryService.saveFromPlan(userId, giftPlanId));
     }
 
     // ===== Surprise plan (Saud) =====
@@ -157,6 +157,29 @@ public class GiftPlanController {
             @PathVariable Long giftPlanId,
             @RequestBody(required = false) SurprisePlanGenerateDTOIn request) {
         return ResponseEntity.ok(surprisePlanService.generate(userId, giftPlanId, request));
+    }
+
+    @PostMapping("/{giftPlanId}/surprise-plan/regenerate")
+    public ResponseEntity<SurprisePlanDTOOut> regenerateSurprisePlan(
+            @RequestParam Long userId,
+            @PathVariable Long giftPlanId,
+            @RequestBody(required = false) SurprisePlanGenerateDTOIn request) {
+        return ResponseEntity.ok(surprisePlanService.regenerate(userId, giftPlanId, request));
+    }
+
+    @PutMapping("/{giftPlanId}/surprise-plan")
+    public ResponseEntity<SurprisePlanDTOOut> updateSurprisePlan(
+            @RequestParam Long userId,
+            @PathVariable Long giftPlanId,
+            @Valid @RequestBody SurprisePlanUpdateDTOIn request) {
+        return ResponseEntity.ok(surprisePlanService.update(userId, giftPlanId, request));
+    }
+
+    @DeleteMapping("/{giftPlanId}/surprise-plan")
+    public ResponseEntity<ApiResponse> deleteSurprisePlan(@RequestParam Long userId,
+                                                          @PathVariable Long giftPlanId) {
+        surprisePlanService.delete(userId, giftPlanId);
+        return ResponseEntity.ok(new ApiResponse("Surprise plan deleted."));
     }
 
     @GetMapping("/{giftPlanId}/surprise-plan")
