@@ -34,7 +34,7 @@ public class GroupGiftInvite {
     @Column(unique = true, columnDefinition = "varchar(64) not null")
     private String token;
 
-        @Column(columnDefinition = "varchar(20) not null")
+    @Column(columnDefinition = "varchar(20) not null")
     private String status;
 
     @Column(updatable = false, columnDefinition = "datetime not null")

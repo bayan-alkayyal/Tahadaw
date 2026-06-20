@@ -11,4 +11,6 @@ public interface GroupGiftRepository extends JpaRepository<GroupGift, Long> {
     Optional<GroupGift> findGroupGiftById(Long id);
 
     List<GroupGift> findByOwner_IdOrderByCreatedAtDesc(Long ownerId);
+
+
 }

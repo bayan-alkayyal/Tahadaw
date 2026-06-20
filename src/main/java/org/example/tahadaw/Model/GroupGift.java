@@ -53,7 +53,7 @@ public class GroupGift {
     @JoinColumn(name = "winning_option_id")
     private GroupGiftOption winningOption;
 
-        @Column(columnDefinition = "varchar(20) not null")
+    @Column(columnDefinition = "varchar(20) not null")
     private String status;
 
     @Column(updatable = false, columnDefinition = "datetime not null")
