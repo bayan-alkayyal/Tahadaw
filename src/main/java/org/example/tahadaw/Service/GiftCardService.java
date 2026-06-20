@@ -7,11 +7,9 @@ import org.example.tahadaw.DTO.IN.GiftCardUpdateDTOIn;
 import org.example.tahadaw.DTO.OUT.GiftCardDTOOut;
 import org.example.tahadaw.Model.GiftCard;
 import org.example.tahadaw.Model.GiftMessage;
-import org.example.tahadaw.Model.GiftPlan;
 import org.example.tahadaw.Model.User;
 import org.example.tahadaw.Repository.GiftCardRepository;
 import org.example.tahadaw.Repository.GiftMessageRepository;
-import org.example.tahadaw.Repository.GiftPlanRepository;
 import org.example.tahadaw.Repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +23,6 @@ public class GiftCardService {
 
     private final GiftCardRepository giftCardRepository;
     private final UserRepository userRepository;
-    private final GiftPlanRepository giftPlanRepository;
     private final GiftMessageRepository giftMessageRepository;
     private final PremiumService premiumService;
     private final QrCodeService qrCodeService;
@@ -40,20 +37,12 @@ public class GiftCardService {
         User user = userRepository.findUserById(userId)
                 .orElseThrow(() -> new ApiException("User not found."));
         premiumService.requirePremium(user);
-        GiftPlan giftPlan = requireOwnedGiftPlan(userId, request.getGiftPlanId());
-
-        if (giftCardRepository.findByGiftPlan_Id(giftPlan.getId()).isPresent()) {
-            throw new ApiException("A gift card already exists for this gift plan.");
-        }
 
         GiftCard giftCard = new GiftCard();
         giftCard.setUser(user);
-        giftCard.setGiftPlan(giftPlan);
-        // Use the real recipient/sender names from the system; the request fields are only a fallback.
-        giftCard.setRecipientName(firstNonBlank(
-                giftPlan.getRecipient() != null ? giftPlan.getRecipient().getName() : null,
-                request.getRecipientName()));
-        giftCard.setSenderName(firstNonBlank(user.getFullName(), request.getSenderName()));
+        // Names come straight from the request body — the card is not tied to a gift plan.
+        giftCard.setRecipientName(request.getRecipientName());
+        giftCard.setSenderName(request.getSenderName());
         giftCard.setCardSize(request.getCardSize());
         giftCard.setLinkType(request.getLinkType());
         giftCard.setLinkUrl(request.getLinkUrl());
@@ -64,8 +53,9 @@ public class GiftCardService {
         if (request.getGiftMessageId() != null) {
             GiftMessage giftMessage = giftMessageRepository.findGiftMessageById(request.getGiftMessageId())
                     .orElseThrow(() -> new ApiException("Gift message not found."));
-            if (!giftMessage.getGiftPlan().getId().equals(giftPlan.getId())) {
-                throw new ApiException("Gift message must belong to the same gift plan.");
+            if (giftMessage.getUser() == null
+                    || !giftMessage.getUser().getId().equals(userId)) {
+                throw new ApiException("Gift message not found.");
             }
             if (giftCardRepository.existsByGiftMessage_Id(giftMessage.getId())) {
                 throw new ApiException("Gift message is already used by another gift card.");
@@ -214,18 +204,6 @@ public class GiftCardService {
         giftCardRepository.delete(giftCard);
     }
 
-    private GiftPlan requireOwnedGiftPlan(Long userId, Long giftPlanId) {
-        GiftPlan giftPlan = giftPlanRepository.findGiftPlanById(giftPlanId)
-                .orElseThrow(() -> new ApiException("Gift plan not found."));
-        if (!giftPlan.getUser().getId().equals(userId)) {
-            throw new ApiException("Gift plan not found.");
-        }
-        if (!giftPlan.getRecipient().getUser().getId().equals(userId)) {
-            throw new ApiException("Recipient must belong to the gift plan owner.");
-        }
-        return giftPlan;
-    }
-
     private GiftCard requireOwnedGiftCard(Long userId, Long giftCardId) {
         GiftCard giftCard = giftCardRepository.findGiftCardById(giftCardId)
                 .orElseThrow(() -> new ApiException("Gift card not found."));
@@ -239,7 +217,6 @@ public class GiftCardService {
         return new GiftCardDTOOut(
                 giftCard.getId(),
                 giftCard.getUser().getId(),
-                giftCard.getGiftPlan().getId(),
                 giftCard.getGiftMessage() != null ? giftCard.getGiftMessage().getId() : null,
                 giftCard.getRecipientName(),
                 giftCard.getSenderName(),

@@ -1,9 +1,6 @@
 package org.example.tahadaw.Service;
 
-import org.example.tahadaw.Model.GroupGift;
-import org.example.tahadaw.Model.GroupGiftInvite;
-import org.example.tahadaw.Model.Reminder;
-import org.example.tahadaw.Model.User;
+import org.example.tahadaw.Model.*;
 
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
@@ -37,6 +34,7 @@ public final class WhatsAppTemplates {
                 + "فريق " + SYSTEM_NAME;
     }
 
+
     public static String buildGroupGiftVoteReminder(GroupGiftInvite invite, GroupGift groupGift, String voteUrl) {
         return "Hello " + invite.getInviteeName() + "\n\n"
                 + "Reminder: please vote on the group gift \"" + groupGift.getTitle() + "\".\n\n"
@@ -50,4 +48,6 @@ public final class WhatsAppTemplates {
                 + "Plan a meaningful gift with " + SYSTEM_NAME + ".\n\n"
                 + SYSTEM_NAME + " team";
     }
+
+
 }

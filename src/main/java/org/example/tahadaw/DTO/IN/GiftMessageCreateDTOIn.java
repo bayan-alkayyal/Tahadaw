@@ -17,7 +17,4 @@ public class GiftMessageCreateDTOIn {
     @NotBlank(message = "Message text is required")
     @Size(max = 1000, message = "Message must not exceed 1000 characters")
     private String messageText;
-
-    private String tone;
-    private String language;
 }

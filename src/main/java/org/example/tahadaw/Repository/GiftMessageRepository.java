@@ -10,5 +10,5 @@ public interface GiftMessageRepository extends JpaRepository<GiftMessage, Long> 
 
     Optional<GiftMessage> findGiftMessageById(Long id);
 
-    List<GiftMessage> findByGiftPlan_IdOrderByCreatedAtDesc(Long giftPlanId);
+    List<GiftMessage> findByUser_IdOrderByCreatedAtDesc(Long userId);
 }

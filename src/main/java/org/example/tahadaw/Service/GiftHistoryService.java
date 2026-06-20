@@ -72,12 +72,13 @@ public class GiftHistoryService {
         history.setGiftDate(giftPlan != null && giftPlan.getOccasionDate() != null
                 ? giftPlan.getOccasionDate() : LocalDate.now());
         history.setPriceMinor(product.getPrice());
-        history.setWasGifted(request.getWasGifted());
+        // Logging from a selected product means the gift was actually given.
+        history.setWasGifted(true);
         history.setUserRating(request.getUserRating());
         history.setNotes(request.getNotes());
         history.setCreatedAt(LocalDateTime.now());
 
-        if (Boolean.TRUE.equals(request.getWasGifted()) && giftPlan != null) {
+        if (giftPlan != null) {
             completeGiftPlan(giftPlan);
         }
 
@@ -204,7 +205,7 @@ public class GiftHistoryService {
                 log != null ? log.getWasGifted() : null,
                 log != null ? log.getUserRating() : null,
                 log != null ? log.getNotes() : null,
-                product.getCreatedAt()
+                log != null && log.getCreatedAt() != null ? log.getCreatedAt() : product.getCreatedAt()
         );
     }
 }

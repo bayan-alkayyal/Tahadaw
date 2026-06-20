@@ -46,7 +46,7 @@ public class SearchApiService {
         if (selectedIdea == null) {
             throw new ApiException("you havent select product yet");
         }
-        //if he select product take product name and search it in google shopping
+        //if he select product take product name and search it in google shopping api
         String productName = selectedIdea.getProductName();
         GoogleShoppingResponse response= webClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -55,6 +55,7 @@ public class SearchApiService {
                         .queryParam("q", productName)
                         .queryParam("gl", "sa")
                         .queryParam("hl", "ar")
+//                        .queryParam("price_max",giftPlan.getBudgetMinor())
                         .build())
                 .retrieve()
                 .onStatus(HttpStatusCode::is4xxClientError, resp ->
@@ -92,7 +93,7 @@ public class SearchApiService {
         SelectedProduct selected = new SelectedProduct();
         selected.setProductName(r.getTitle());
         selected.setPrice(r.getExtractedPrice() == null ? null : r.getExtractedPrice() );
-        selected.setCurrency("SAR"); // derive from gl/location if you need multi-locale support
+        selected.setCurrency("SAR");
         selected.setImageUrl(r.getThumbnail());
         selected.setProductUrl(r.getProductLink());
         selected.setStoreName(r.getSeller());

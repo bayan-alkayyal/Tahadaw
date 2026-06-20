@@ -21,9 +21,9 @@ public class GiftMessage {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "gift_plan_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = false)
     @JsonIgnore
-    private GiftPlan giftPlan;
+    private User user;
 
     @Column(columnDefinition = "varchar(50)")
     private String tone;

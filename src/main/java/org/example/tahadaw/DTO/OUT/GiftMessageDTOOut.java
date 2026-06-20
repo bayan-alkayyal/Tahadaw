@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 public class GiftMessageDTOOut {
 
     private Long id;
-    private Long giftPlanId;
+    private Long userId;
     private String tone;
     private String language;
     private String messageText;

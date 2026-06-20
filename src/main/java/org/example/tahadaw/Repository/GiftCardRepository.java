@@ -12,7 +12,5 @@ public interface GiftCardRepository extends JpaRepository<GiftCard, Long> {
 
     List<GiftCard> findByUser_IdOrderByCreatedAtDesc(Long userId);
 
-    Optional<GiftCard> findByGiftPlan_Id(Long giftPlanId);
-
     boolean existsByGiftMessage_Id(Long giftMessageId);
 }

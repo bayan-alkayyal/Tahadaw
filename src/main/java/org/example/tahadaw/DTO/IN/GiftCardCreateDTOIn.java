@@ -10,9 +10,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class GiftCardCreateDTOIn {
 
-    // Optional in the body: the /gift-plans/{giftPlanId}/gift-card endpoint supplies it from the path.
-    private Long giftPlanId;
-
     private Long giftMessageId;
 
     @NotBlank

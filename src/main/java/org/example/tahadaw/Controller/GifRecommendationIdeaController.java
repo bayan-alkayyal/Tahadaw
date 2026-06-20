@@ -27,6 +27,11 @@ public class GifRecommendationIdeaController {
         return ResponseEntity.status(200).body(giftRecommendationService.generateGiftRecommendation(userId, giftId));
     }
 
+    @GetMapping("/regenerate-Recomendation/{userId}/{giftId}")
+    public ResponseEntity<?> regenerateRecommendation(@PathVariable Long userId, @PathVariable Long giftId) {
+        return ResponseEntity.status(200).body(giftRecommendationService.regenerateGiftRecommendation(userId, giftId));
+    }
+
     @GetMapping("/get-selected-idea/{giftplanId}")
     public ResponseEntity<?> getSelectedIdea(@PathVariable Long giftplanId){
         return ResponseEntity.status(200).body(giftRecommendationService.getSelectedRecommendation(giftplanId));

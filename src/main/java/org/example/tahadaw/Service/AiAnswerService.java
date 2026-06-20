@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -116,7 +117,10 @@ public class AiAnswerService {
 
             AiQuestionAnswer answer = aiQuestionAnswerRepository
                     .findByAiGeneratedQuestion_Id(question.getId())
-                    .orElseGet(AiQuestionAnswer::new);
+                    .orElse(null);
+            if (answer == null) {
+                answer = new AiQuestionAnswer();
+            }
 
             answer.setAiGeneratedQuestion(question);
             answer.setAnswerText(item.getAnswerText());
@@ -136,9 +140,14 @@ public class AiAnswerService {
     public List<AiQuestionAnswerDTOOut> listAnswers(Long userId, Long giftPlanId) {
         requireOwnedGiftPlan(userId, giftPlanId);
 
-        return aiQuestionAnswerRepository.findByAiGeneratedQuestion_GiftPlan_IdOrderByCreatedAtAsc(giftPlanId).stream()
-                .map(this::toAnswerDto)
-                .toList();
+        List<AiQuestionAnswer> answers = aiQuestionAnswerRepository
+                .findByAiGeneratedQuestion_GiftPlan_IdOrderByCreatedAtAsc(giftPlanId);
+
+        List<AiQuestionAnswerDTOOut> result = new ArrayList<>();
+        for (AiQuestionAnswer answer : answers) {
+            result.add(toAnswerDto(answer));
+        }
+        return result;
     }
 
     private GiftPlan requireOwnedGiftPlan(Long userId, Long giftPlanId) {
@@ -154,12 +163,13 @@ public class AiAnswerService {
     }
 
     private AiQuestionAnswerDTOOut toAnswerDto(AiQuestionAnswer answer) {
-        return new AiQuestionAnswerDTOOut(
+        AiQuestionAnswerDTOOut aiQuestionAnswerDTOOut = new AiQuestionAnswerDTOOut(
                 answer.getId(),
                 answer.getAiGeneratedQuestion().getId(),
                 answer.getAiGeneratedQuestion().getQuestionText(),
                 answer.getAnswerText(),
                 answer.getCreatedAt()
         );
+        return aiQuestionAnswerDTOOut;
     }
 }

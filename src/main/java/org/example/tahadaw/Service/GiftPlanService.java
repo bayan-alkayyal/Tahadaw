@@ -3,15 +3,17 @@ package org.example.tahadaw.Service;
 import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.Api.ApiException;
 import org.example.tahadaw.DTO.IN.GiftPlanDTOIn;
-import org.example.tahadaw.Model.GiftPlan;
-import org.example.tahadaw.Model.Recipient;
-import org.example.tahadaw.Model.User;
+import org.example.tahadaw.DTO.OUT.GiftPlanSummeryDTOOut;
+import org.example.tahadaw.DTO.OUT.RecipientDTOOut;
+import org.example.tahadaw.DTO.OUT.SelectedProductSummeryDTOOut;
+import org.example.tahadaw.Model.*;
 import org.example.tahadaw.Repository.GiftPlanRepository;
 import org.example.tahadaw.Repository.RecipientRepository;
 import org.example.tahadaw.Repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -72,6 +74,55 @@ public class GiftPlanService {
         giftPlanRepository.delete(giftPlan);
     }
 
+    public List<GiftPlan> listAllActiveGiftPlans(Long userId) {
+        List<GiftPlan> activePlan=giftPlanRepository.findGiftPlanByUserIdAndOccasionDateAfter(userId, LocalDate.now());
+        if (activePlan.isEmpty())
+            throw new ApiException("No active gift plans found.");
+        return activePlan;
+
+    }
+    public List<GiftPlan> listAllPreviousGiftPlans(Long userId) {
+        List<GiftPlan> previousPlan=giftPlanRepository.findGiftPlanByUserIdAndOccasionDateBefore(userId, LocalDate.now());
+        if (previousPlan.isEmpty())
+            throw new ApiException("No previous gift plans found.");
+        return previousPlan;
+    }
+
+    public GiftPlanSummeryDTOOut getGiftPlanSummary(Long userId,Long giftPlanId) {
+        GiftPlan giftPlan = giftPlanRepository.findGiftPlanById(giftPlanId)
+                .orElseThrow(() -> new ApiException("Gift plan not found."));
+        if (!giftPlan.getUser().getId().equals(userId)) {
+            throw new ApiException("Gift plan not yours.");
+        }
+
+        RecipientDTOOut recipientDto = new RecipientDTOOut(
+                giftPlan.getRecipient().getName(),
+                giftPlan.getRecipient().getRelationship()
+        );
+
+        SelectedProductSummeryDTOOut selectedProductDto = null;
+        GiftIdeaRecommendation selectedIdea = giftPlan.getSelectedGiftIdea();
+        if (selectedIdea != null
+                && selectedIdea.getSelectedProducts() != null
+                && !selectedIdea.getSelectedProducts().isEmpty()) {
+            SelectedProduct product = selectedIdea.getSelectedProducts().iterator().next();
+            selectedProductDto = new SelectedProductSummeryDTOOut(
+                    product.getProductName(),
+                    product.getPrice(),
+                    product.getStoreName()
+            );
+        }
+
+        return new GiftPlanSummeryDTOOut(
+                giftPlan.getId(),
+                giftPlan.getOccasionType(),
+                giftPlan.getOccasionDate(),
+                recipientDto,
+                giftPlan.getBudgetMinor(),
+                selectedProductDto
+        );
+    }
+
     public GiftPlan getGiftPlanById(Long userId, Long id) {
         return requireOwnedGiftPlan(userId, id);
     }
@@ -80,7 +131,7 @@ public class GiftPlanService {
         Recipient recipient = recipientRepository.findRecipientById(recipientId)
                 .orElseThrow(() -> new ApiException("Recipient not found."));
         if (!recipient.getUser().getId().equals(userId)) {
-            throw new ApiException("Recipient not found.");
+            throw new ApiException("Recipient not yours.");
         }
         return recipient;
     }

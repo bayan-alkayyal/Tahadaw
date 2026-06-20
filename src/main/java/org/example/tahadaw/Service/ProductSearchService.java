@@ -140,7 +140,7 @@ public class ProductSearchService {
 //    }
 
     @Transactional
-    public void selectProduct(Long userId, Long productId) {
+    public void selectProduct(Long userId ,Long productId) {
         SelectedProduct selectedProduct=selectedProductRepository.findSelectedProductById(productId);
         if(selectedProduct==null){
             throw new ApiException("Product not found");
@@ -171,6 +171,9 @@ public class ProductSearchService {
 
         giftPlan.setSelectedProduct(selectedProduct);
         selectedProduct.setIsSelected(true);
+        if (selectedProduct.getCreatedAt() == null) {
+            selectedProduct.setCreatedAt(LocalDateTime.now());
+        }
         selectedProduct.setGiftPlan(giftPlan);
         selectedProduct.setUser(giftPlan.getUser());
         selectedProduct.setRecipient(giftPlan.getRecipient());

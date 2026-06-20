@@ -85,11 +85,12 @@ public class AiQuestionService {
     public List<AiGeneratedQuestion> generateQuestions(Long userId, Long giftPlanId) {
         GiftPlan giftPlan = requireOwnedGiftPlan(userId, giftPlanId);
 
-        // if (!"REQUIRED_QUESTIONS_ANSWERED".equals(giftPlan.getStatus())) {
-        //     throw new ApiException("Answer all required questions before generating AI follow-up questions.");
-        // }
+//         if (!"REQUIRED_QUESTIONS_ANSWERED".equals(giftPlan.getStatus())) {
+//             throw new ApiException("Answer all required questions before generating AI questions.");
+//         }
+
         if (aiGeneratedQuestionRepository.existsByGiftPlan_Id(giftPlanId)) {
-            throw new ApiException("AI follow-up questions already generated for this gift plan.");
+            throw new ApiException("AI questions already generated for this gift plan.");
         }
 
         String prompt = buildPrompt(giftPlan);
@@ -99,7 +100,7 @@ public class AiQuestionService {
 
         //check if the questions node is null or empty
         if (questionsNode == null || !questionsNode.isArray() || questionsNode.isEmpty()) {
-            throw new ApiException("AI did not return any follow-up questions.");
+            throw new ApiException("AI did not return any questions.");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -128,9 +129,14 @@ public class AiQuestionService {
     public List<AiGeneratedQuestionDTOOut> listQuestions(Long userId, Long giftPlanId) {
         requireOwnedGiftPlan(userId, giftPlanId);
 
-        return aiGeneratedQuestionRepository.findByGiftPlan_IdOrderByDisplayOrderAsc(giftPlanId).stream()
-                .map(this::toQuestionDto)
-                .toList();
+        List<AiGeneratedQuestion> questions = aiGeneratedQuestionRepository
+                .findByGiftPlan_IdOrderByDisplayOrderAsc(giftPlanId);
+
+        List<AiGeneratedQuestionDTOOut> result = new ArrayList<>();
+        for (AiGeneratedQuestion question : questions) {
+            result.add(toQuestionDto(question));
+        }
+        return result;
     }
 
 
@@ -181,7 +187,7 @@ public class AiQuestionService {
         if (giftPlan.getOccasionDate() != null) {
             context.append("Occasion date: ").append(giftPlan.getOccasionDate()).append('\n');
         }
-        context.append("Budget minor units: ").append(giftPlan.getBudgetMinor()).append('\n');
+        context.append("Budget: ").append(giftPlan.getBudgetMinor()).append('\n');
         context.append("Currency: ").append(giftPlan.getCurrency()).append('\n');
         if (giftPlan.getPreferredGiftStyle() != null) {
             context.append("Preferred gift style: ").append(giftPlan.getPreferredGiftStyle()).append('\n');
@@ -232,13 +238,4 @@ public class AiQuestionService {
         );
     }
 
-    private AiQuestionAnswerDTOOut toAnswerDto(AiQuestionAnswer answer) {
-        return new AiQuestionAnswerDTOOut(
-                answer.getId(),
-                answer.getAiGeneratedQuestion().getId(),
-                answer.getAiGeneratedQuestion().getQuestionText(),
-                answer.getAnswerText(),
-                answer.getCreatedAt()
-        );
-    }
 }
