@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Tahadaw - Gift Card Flow (full: create user + premium + AI message + card)",
-    "description": "Full end-to-end test for Flow 13 (Premium Gift Card) starting from nothing:\ncreate a user, pay for premium via Moyasar sandbox (with the one-time 3-D Secure approval),\ncreate a recipient + gift plan, generate AI gift recommendations and pick one, generate an\nAI gift MESSAGE, then build the branded gift card (navy #2D3A47 design + Tahadaw logo + QR)\nusing that generated message, view the rendered PNG, and (re)send it by email.\n\nThe gift card link uses a YouTube URL ({{youtubeUrl}}) which is encoded into the QR on the card.\n\nIMPORTANT — the premium payment needs ONE manual browser step (this is how real card payments work):\n  Step 3 (Pay Premium) returns a 3-D Secure URL. Moyasar sandbox does NOT auto-approve.\n  1. Run step 3. The test tab / console prints a '3DS_URL'.\n  2. Open that URL in a browser and click the green 'Complete / Pay' (sandbox) button to approve.\n  3. Run step 4 (Refresh Payment Status) -> it becomes PAID and premium is activated.\n  4. Continue with the rest.\n\nIf you would rather skip payment entirely, load seed-part3.sql (premium user id=3),\nset {{userId}} = 3 manually, and run from step 5 onward (note: the seeded plan uses a recipient\nowned by user 1, so still create your own recipient + plan via steps 6-8).\n\nNOTE: creating the card (step 12) AUTO-SENDS it to the owner's email. Step 16 just re-sends it.\nSet {{cardEmail}} (and ideally use a real email when creating the user) to actually receive it.\n\nConfig needed in application-local.properties: openai.api.key, moyasar.api.key (sk_test_...),\nand working spring.mail.* (Gmail App Password) for the email steps.\n\nRun the steps top-to-bottom. Each step stores the IDs it creates into collection variables.\n\nFlow:\n1. Create User\n2. Find User Id              (capture {{userId}})\n3. Pay Premium (Moyasar)     (capture {{moyasarPaymentId}}, prints 3DS_URL)\n   --- approve the 3DS URL in a browser ---\n4. Refresh Payment Status    (-> PAID, activates premium)\n5. Check Premium Status      (guard)\n6. Add Recipient\n7. Find Recipient Id         (capture {{recipientId}})\n8. Create Gift Plan          (capture {{giftPlanId}})\n9. Generate Gift Recommendations (AI)  (capture {{recommendationId}})\n10. Select Recommendation\n11. Generate Gift Message (AI)         (capture {{giftMessageId}})\n12. Create Gift Card (uses {{giftMessageId}} + YouTube link)  (capture {{giftCardId}})\n13. View Gift Card Image (PNG)\n14. Get Gift Card Metadata\n15. List My Gift Cards\n16. Re-send Gift Card Email\n",
+    "name": "Tahadaw - Gift Card Flow (standalone: user + premium + message + card)",
+    "description": "End-to-end test for the Premium Gift Card flow. Gift cards and gift messages are now\nfully standalone — they are NOT tied to a gift plan, recipient, or recommendation.\n\nThe sender/recipient names live on the card body, and the message is created on its own\n(either AI-generated or hand-written) and linked to the card by giftMessageId.\n\nThe gift card link uses a YouTube URL ({{youtubeUrl}}) which is encoded into the QR on the card.\n\nIMPORTANT — the premium payment needs ONE manual browser step (this is how real card payments work):\n  Step 3 (Pay Premium) returns a 3-D Secure URL. Moyasar sandbox does NOT auto-approve.\n  1. Run step 3. The test tab / console prints a '3DS_URL'.\n  2. Open that URL in a browser and click the green 'Complete / Pay' (sandbox) button to approve.\n  3. Run step 4 (Refresh Payment Status) -> it becomes PAID and premium is activated.\n  4. Continue with the rest.\n\nConfig needed in application-local.properties: openai.api.key, moyasar.api.key (sk_test_...),\nand working spring.mail.* (Gmail App Password) for the email steps.\n\nRun the steps top-to-bottom. Each step stores the IDs it creates into collection variables.\n\nFlow:\n1. Create User\n2. Find User Id              (capture {{userId}})\n3. Pay Premium (Moyasar)     (capture {{moyasarPaymentId}}, prints 3DS_URL)\n   --- approve the 3DS URL in a browser ---\n4. Refresh Payment Status    (-> PAID, activates premium)\n5. Check Premium Status      (guard)\n6. Generate Gift Message (AI)        (capture {{giftMessageId}})\n7. Create Manual Gift Message (alt)  (capture {{manualMessageId}} — not used by the card below)\n8. Create Gift Card (uses {{giftMessageId}} + names + YouTube link)  (capture {{giftCardId}})\n9. View Gift Card Image (PNG)\n10. Get Gift Card Metadata\n11. List My Gift Cards\n12. Re-send Gift Card Email\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -10,12 +10,11 @@
     { "key": "email", "value": "", "type": "string" },
     { "key": "userId", "value": "", "type": "string" },
     { "key": "moyasarPaymentId", "value": "", "type": "string" },
-    { "key": "recipientName", "value": "", "type": "string" },
-    { "key": "recipientId", "value": "", "type": "string" },
-    { "key": "giftPlanId", "value": "", "type": "string" },
-    { "key": "recommendationId", "value": "", "type": "string" },
     { "key": "giftMessageId", "value": "", "type": "string" },
+    { "key": "manualMessageId", "value": "", "type": "string" },
     { "key": "giftCardId", "value": "", "type": "string" },
+    { "key": "recipientName", "value": "Sara", "type": "string" },
+    { "key": "senderName", "value": "Card Tester", "type": "string" },
     { "key": "cardEmail", "value": "recipient@example.com", "type": "string" },
     { "key": "youtubeUrl", "value": "https://youtu.be/BeUwc7L1Rug?si=qJkAbEBdSM4a7IVg", "type": "string" }
   ],
@@ -181,158 +180,7 @@
       }
     },
     {
-      "name": "6. Add Recipient",
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "const stamp = Date.now().toString().slice(-7);",
-              "pm.collectionVariables.set('recipientName', 'CardRecipient ' + stamp);"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Recipient added (200)', () => pm.response.code === 200);"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "url": {
-          "raw": "{{base_url}}/api/v1/recipients/add/{{userId}}",
-          "host": ["{{base_url}}"],
-          "path": ["api", "v1", "recipients", "add", "{{userId}}"]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"{{recipientName}}\",\n  \"relationship\": \"sister\",\n  \"age\": 24,\n  \"gender\": \"female\",\n  \"interests\": \"reading, coffee, travel\",\n  \"hobbies\": \"photography\",\n  \"favoriteColors\": \"green, beige\",\n  \"personalityStyle\": \"thoughtful\",\n  \"consentAcknowledged\": true\n}"
-        }
-      }
-    },
-    {
-      "name": "7. Find Recipient Id",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "const recipients = pm.response.json();",
-              "const wanted = pm.collectionVariables.get('recipientName');",
-              "const list = Array.isArray(recipients) ? recipients : [];",
-              "const mine = list.filter(r => r.name === wanted);",
-              "const r = mine.length ? mine[mine.length - 1] : null;",
-              "pm.test('Found created recipient', () => pm.expect(r, 'recipient named ' + wanted).to.be.an('object'));",
-              "if (r) { pm.collectionVariables.set('recipientId', r.id); console.log('recipientId =', r.id); }"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": { "raw": "{{base_url}}/api/v1/recipients/get", "host": ["{{base_url}}"], "path": ["api", "v1", "recipients", "get"] }
-      }
-    },
-    {
-      "name": "8. Create Gift Plan",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Gift plan created (200)', () => pm.response.code === 200);",
-              "const plan = pm.response.json();",
-              "pm.test('Plan has id', () => pm.expect(plan).to.have.property('id'));",
-              "if (plan && plan.id) { pm.collectionVariables.set('giftPlanId', plan.id); console.log('giftPlanId =', plan.id); }"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "url": {
-          "raw": "{{base_url}}/api/v1/gift-plans?userId={{userId}}&recipientId={{recipientId}}",
-          "host": ["{{base_url}}"],
-          "path": ["api", "v1", "gift-plans"],
-          "query": [
-            { "key": "userId", "value": "{{userId}}" },
-            { "key": "recipientId", "value": "{{recipientId}}" }
-          ]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"occasionType\": \"GRADUATION\",\n  \"occasionDate\": \"2026-07-01\",\n  \"budgetMinor\": 30000,\n  \"currency\": \"SAR\",\n  \"preferredGiftStyle\": \"PRACTICAL\",\n  \"language\": \"ar\"\n}"
-        }
-      }
-    },
-    {
-      "name": "9. Generate Gift Recommendations (AI)",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Recommendations generated (200)', () => pm.response.code === 200);",
-              "const recs = pm.response.json();",
-              "const list = Array.isArray(recs) ? recs : [];",
-              "pm.test('At least one recommendation returned', () => pm.expect(list.length).to.be.above(0));",
-              "if (list.length) {",
-              "  pm.collectionVariables.set('recommendationId', list[0].id);",
-              "  console.log('recommendationId =', list[0].id, '| name =', list[0].productName);",
-              "}"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{base_url}}/api/v1/gift-plans/get-rec/{{userId}}/{{giftPlanId}}",
-          "host": ["{{base_url}}"],
-          "path": ["api", "v1", "gift-plans", "get-rec", "{{userId}}", "{{giftPlanId}}"]
-        },
-        "description": "AI-generates 3-5 gift ideas from the recipient + occasion context. No questions chain required."
-      }
-    },
-    {
-      "name": "10. Select Recommendation",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Recommendation selected (200)', () => pm.response.code === 200);"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "PUT",
-        "header": [],
-        "url": {
-          "raw": "{{base_url}}/api/v1/gift-plans/select-Recomendation/{{userId}}/{{recommendationId}}",
-          "host": ["{{base_url}}"],
-          "path": ["api", "v1", "gift-plans", "select-Recomendation", "{{userId}}", "{{recommendationId}}"]
-        },
-        "description": "Marks one AI gift idea as selected. Required before a gift MESSAGE can be generated."
-      }
-    },
-    {
-      "name": "11. Generate Gift Message (AI)",
+      "name": "6. Generate Gift Message (AI)",
       "event": [
         {
           "listen": "test",
@@ -353,20 +201,54 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "url": {
-          "raw": "{{base_url}}/api/v1/gift-plans/{{giftPlanId}}/messages/generate?userId={{userId}}",
+          "raw": "{{base_url}}/api/v1/gift-messages/generate?userId={{userId}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "v1", "gift-plans", "{{giftPlanId}}", "messages", "generate"],
+          "path": ["api", "v1", "gift-messages", "generate"],
           "query": [{ "key": "userId", "value": "{{userId}}" }]
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"tone\": \"warm\",\n  \"language\": \"ar\",\n  \"dialect\": \"\"\n}"
+          "raw": "{\n  \"recipientName\": \"{{recipientName}}\",\n  \"relationship\": \"sister\",\n  \"occasion\": \"graduation\",\n  \"giftName\": \"smart watch\",\n  \"tone\": \"warm and proud\",\n  \"language\": \"ar\",\n  \"dialect\": \"\"\n}"
         },
-        "description": "AI-generates a heartfelt Arabic gift message tied to the selected idea. Its id is fed into the gift card so the card shows THIS message instead of the default."
+        "description": "AI writes the message from the context in the body — no gift plan involved. Its id is fed into the gift card so the card shows THIS message instead of the default."
       }
     },
     {
-      "name": "12. Create Gift Card (uses generated message + YouTube link)",
+      "name": "7. Create Manual Gift Message (alternative)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Manual message created (200)', () => pm.response.code === 200);",
+              "const m = pm.response.json();",
+              "pm.test('Message has id', () => pm.expect(m).to.have.property('id'));",
+              "if (m && m.id) { pm.collectionVariables.set('manualMessageId', m.id); }",
+              "console.log('manualMessageId =', m.id, '| tone =', m.tone);",
+              "console.log('NOTE: the card in step 8 uses the AI message ({{giftMessageId}}). To use this manual one instead, set giftMessageId = ' + m.id + ' or change the card body.');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/api/v1/gift-messages/manual?userId={{userId}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "gift-messages", "manual"],
+          "query": [{ "key": "userId", "value": "{{userId}}" }]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"messageText\": \"مبروك تخرّجك! فخورون بك دائمًا، وهذه هدية بسيطة تعبّر عن حبنا.\"\n}"
+        },
+        "description": "User-written message (no AI). The body carries only the text. Demonstrated as an alternative to step 6; not used by the card below unless you point giftMessageId at it."
+      }
+    },
+    {
+      "name": "8. Create Gift Card (uses generated message + names + YouTube link)",
       "event": [
         {
           "listen": "test",
@@ -378,6 +260,8 @@
               "pm.test('Card has id', () => pm.expect(card).to.have.property('id'));",
               "if (card && card.id) { pm.collectionVariables.set('giftCardId', card.id); console.log('giftCardId =', card.id); }",
               "pm.test('Uses generated message', () => pm.expect(String(card.giftMessageId)).to.eql(String(pm.collectionVariables.get('giftMessageId'))));",
+              "pm.test('Recipient name from body', () => pm.expect(card.recipientName).to.eql(pm.collectionVariables.get('recipientName')));",
+              "pm.test('Sender name from body', () => pm.expect(card.senderName).to.eql(pm.collectionVariables.get('senderName')));",
               "pm.test('Link URL stored', () => pm.expect(card.linkUrl).to.eql(pm.collectionVariables.get('youtubeUrl')));",
               "console.log('card status =', card.status, '(SENT means auto-email succeeded)');"
             ]
@@ -388,20 +272,20 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "url": {
-          "raw": "{{base_url}}/api/v1/gift-plans/{{giftPlanId}}/gift-card?userId={{userId}}",
+          "raw": "{{base_url}}/api/v1/gift-cards?userId={{userId}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "v1", "gift-plans", "{{giftPlanId}}", "gift-card"],
+          "path": ["api", "v1", "gift-cards"],
           "query": [{ "key": "userId", "value": "{{userId}}" }]
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"giftMessageId\": {{giftMessageId}},\n  \"cardSize\": \"MEDIUM\",\n  \"linkType\": \"VIDEO\",\n  \"linkUrl\": \"{{youtubeUrl}}\",\n  \"sentToEmail\": \"{{cardEmail}}\"\n}"
+          "raw": "{\n  \"giftMessageId\": {{giftMessageId}},\n  \"recipientName\": \"{{recipientName}}\",\n  \"senderName\": \"{{senderName}}\",\n  \"cardSize\": \"MEDIUM\",\n  \"linkType\": \"VIDEO\",\n  \"linkUrl\": \"{{youtubeUrl}}\",\n  \"sentToEmail\": \"{{cardEmail}}\"\n}"
         },
-        "description": "Builds the card using the AI-generated message (giftMessageId). Auto-sends to sentToEmail/owner. To use the default message instead, remove the giftMessageId line."
+        "description": "Builds the card standalone (no gift plan). Names come from the body. Links the AI message via giftMessageId. Auto-sends to sentToEmail/owner. To use the default message instead, remove the giftMessageId line."
       }
     },
     {
-      "name": "13. View Gift Card Image (PNG)",
+      "name": "9. View Gift Card Image (PNG)",
       "event": [
         {
           "listen": "test",
@@ -429,7 +313,7 @@
       }
     },
     {
-      "name": "14. Get Gift Card Metadata",
+      "name": "10. Get Gift Card Metadata",
       "event": [
         {
           "listen": "test",
@@ -456,7 +340,7 @@
       }
     },
     {
-      "name": "15. List My Gift Cards",
+      "name": "11. List My Gift Cards",
       "event": [
         {
           "listen": "test",
@@ -482,7 +366,7 @@
       }
     },
     {
-      "name": "16. Re-send Gift Card Email",
+      "name": "12. Re-send Gift Card Email",
       "event": [
         {
           "listen": "test",
@@ -510,7 +394,7 @@
           "mode": "raw",
           "raw": "{\n  \"email\": \"{{cardEmail}}\"\n}"
         },
-        "description": "Step 12 already auto-sends the card. This re-sends it (e.g. to a different address)."
+        "description": "Step 8 already auto-sends the card. This re-sends it (e.g. to a different address)."
       }
     }
   ]

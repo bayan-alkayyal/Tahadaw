@@ -26,11 +26,6 @@ public class GiftCard {
     private User user;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "gift_plan_id", nullable = false, unique = true)
-    @JsonIgnore
-    private GiftPlan giftPlan;
-
-    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "gift_message_id", unique = true)
     private GiftMessage giftMessage;
 

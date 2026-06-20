@@ -81,17 +81,9 @@ public class GiftPlan {
     @JsonIgnore
     private Set<GiftIdeaRecommendation> giftIdeaRecommendations;
 
-    @OneToMany(mappedBy = "giftPlan", cascade = CascadeType.ALL)
-    @JsonIgnore
-    private Set<GiftMessage> giftMessages;
-
     @OneToOne(mappedBy = "giftPlan", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore
     private SurprisePlan surprisePlan;
-
-    @OneToOne(mappedBy = "giftPlan", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonIgnore
-    private GiftCard giftCard;
 
     @OneToMany(mappedBy = "giftPlan", cascade = CascadeType.ALL)
     @JsonIgnore

@@ -11,7 +11,6 @@ public class GiftCardDTOOut {
 
     private Long id;
     private Long userId;
-    private Long giftPlanId;
     private Long giftMessageId;
     private String recipientName;
     private String senderName;

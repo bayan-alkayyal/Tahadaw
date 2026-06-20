@@ -368,7 +368,48 @@ public class GiftCardImageService {
         return out;
     }
 
+    // Bundled Arabic fonts (Amiri, OFL) so rendering is identical on any OS/server,
+    // including headless Linux containers where no system Arabic font is installed.
+    private static volatile Font baseRegular;
+    private static volatile Font baseBold;
+    private static volatile boolean fontsLoaded;
+
+    private static void loadBundledFonts() {
+        if (fontsLoaded) {
+            return;
+        }
+        synchronized (GiftCardImageService.class) {
+            if (fontsLoaded) {
+                return;
+            }
+            baseRegular = loadFontResource("/fonts/Amiri-Regular.ttf");
+            baseBold = loadFontResource("/fonts/Amiri-Bold.ttf");
+            fontsLoaded = true;
+        }
+    }
+
+    private static Font loadFontResource(String path) {
+        try (InputStream in = GiftCardImageService.class.getResourceAsStream(path)) {
+            if (in == null) {
+                return null;
+            }
+            return Font.createFont(Font.TRUETYPE_FONT, in);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
     private static Font pickFont(int style, int size) {
+        loadBundledFonts();
+        Font base = ((style & Font.BOLD) != 0) ? baseBold : baseRegular;
+        if (base == null) {
+            base = baseRegular != null ? baseRegular : baseBold;
+        }
+        if (base != null) {
+            // The bundled file already carries the right weight; only size it.
+            return base.deriveFont(Font.PLAIN, (float) size);
+        }
+        // Fallback: rely on a system Arabic-capable font.
         for (String name : new String[]{"Segoe UI", "Tahoma", "Arial", "Dialog"}) {
             Font font = new Font(name, style, size);
             if (font.canDisplay('\u062A')) {
