@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class EmailService {
 
-    private static final String SYSTEM_NAME = "Tahadaw";
+    private static final String SYSTEM_NAME = "تهادوا";
     private static final String GIFT_CARD_CID = "giftCardImage";
 
     private final JavaMailSender mailSender;
@@ -76,14 +76,67 @@ public class EmailService {
         );
     }
 
-    public void sendGroupGiftInviteEmail(GroupGiftInvite invite, GroupGift groupGift, String voteUrl) {
-        String subject = SYSTEM_NAME + " — Group Gift Vote";
+    //Bayan
+    public void sendGroupGiftInviteEmail(GroupGiftInvite invite, GroupGift groupGift) {
+        String subject = SYSTEM_NAME + " — دعوة للتصويت على هدية جماعية";
+
+        String html = """
+        <h2>تمت دعوتك للتصويت على هدية جماعية</h2>
+
+        <p>مرحبًا %s،</p>
+
+        <p>
+            تمت دعوتك للمشاركة في التصويت على هدية جماعية عبر منصة <strong>تهادوا</strong>.
+        </p>
+
+        <p>
+            <strong>عنوان التصويت:</strong> %s
+        </p>
+
+        <p>
+            <strong>المستلم:</strong> %s
+        </p>
+
+        <p>
+            مشاركتك تساعد في اختيار الهدية الأنسب من بين الخيارات المقترحة.
+            يرجى الدخول إلى النظام والاطلاع على خيارات الهدايا، ثم اختيار الهدية الأنسب في نظرك.
+        </p>
+
+        <p>
+            شكرًا لمشاركتك.
+        </p>
+        """.formatted(
+                invite.getInviteeName(),
+                groupGift.getTitle(),
+                groupGift.getRecipient().getName()
+        );
+
+        String plainText = """
+        مرحبًا %s،
+
+        تمت دعوتك للمشاركة في التصويت على هدية جماعية عبر منصة تهادوا.
+
+        عنوان التصويت:
+        %s
+
+        المستلم:
+        %s
+
+        مشاركتك تساعد في اختيار الهدية الأنسب من بين الخيارات المقترحة.
+        يرجى الدخول إلى النظام والاطلاع على خيارات الهدايا، ثم اختيار الهدية الأنسب في نظرك.
+
+        شكرًا لمشاركتك.
+        """.formatted(
+                invite.getInviteeName(),
+                groupGift.getTitle(),
+                groupGift.getRecipient().getName()
+        );
 
         sendHtmlEmail(
                 invite.getInviteeEmail(),
                 subject,
-                EmailHtmlTemplates.buildGroupGiftInviteHtml(invite, groupGift, voteUrl),
-                EmailHtmlTemplates.buildGroupGiftInvitePlainText(invite, groupGift, voteUrl)
+                html,
+                plainText
         );
     }
 
