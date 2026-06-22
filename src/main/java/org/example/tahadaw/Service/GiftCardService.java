@@ -1,5 +1,9 @@
 package org.example.tahadaw.Service;
 
+import com.lowagie.text.Document;
+import com.lowagie.text.Image;
+import com.lowagie.text.PageSize;
+import com.lowagie.text.pdf.PdfWriter;
 import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.Api.ApiException;
 import org.example.tahadaw.DTO.IN.GiftCardCreateDTOIn;
@@ -14,6 +18,7 @@ import org.example.tahadaw.Repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -164,6 +169,37 @@ public class GiftCardService {
             giftCardRepository.save(giftCard);
         }
         return giftCard.getGiftCardImage();
+    }
+
+    /**
+     * Wrap the rendered card PNG in a single-page A4 PDF, scaled to fit the printable area.
+     */
+    @Transactional
+    public byte[] getCardPdf(Long userId, Long giftCardId) {
+        byte[] cardPng = getCardImage(userId, giftCardId);
+        if (cardPng == null || cardPng.length == 0) {
+            throw new ApiException("Gift card image is not available.");
+        }
+
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Document document = new Document(PageSize.A4, 36, 36, 36, 36);
+            PdfWriter.getInstance(document, out);
+            document.open();
+
+            Image image = Image.getInstance(cardPng);
+            float maxWidth = document.getPageSize().getWidth() - document.leftMargin() - document.rightMargin();
+            float maxHeight = document.getPageSize().getHeight() - document.topMargin() - document.bottomMargin();
+            image.scaleToFit(maxWidth, maxHeight);
+            image.setAlignment(Image.ALIGN_CENTER);
+
+            document.add(image);
+            document.close();
+            return out.toByteArray();
+        } catch (ApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ApiException("Failed to generate gift card PDF.");
+        }
     }
 
     private void renderImages(GiftCard giftCard) {

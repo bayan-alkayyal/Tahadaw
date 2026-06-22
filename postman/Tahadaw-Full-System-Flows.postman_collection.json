@@ -3724,6 +3724,100 @@
           ]
         },
         {
+          "name": "Saud - Dashboard & Analytics (extra)",
+          "description": "New aggregated/analytics endpoints. Run after main flows so recipientId, giftCardId, and history data are available.",
+          "item": [
+            {
+              "name": "Get Dashboard",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{base_url}}/api/v1/dashboard",
+                "description": "Aggregated home screen: upcoming reminders, active plans count, recent gifts, premium status, pending group-gift votes."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get Spending Stats",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{base_url}}/api/v1/gift-history/spending-stats?from=2026-01-01&to=2026-12-31",
+                "description": "Time-bounded spending breakdown. Query params from and to are optional (ISO dates)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get Recipient Insights",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{base_url}}/api/v1/recipients/{{recipientId}}/insights",
+                "description": "Per-recipient gifting insights: totals, occasions, top stores, spend timeline."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var c = pm.response.code;",
+                      "pm.test(\"Recipient insights fetched\", function () {",
+                      "  if (c === 200) { pm.expect(c).to.eql(200); }",
+                      "  else { console.log(\"Recipient insights fetched -> HTTP \" + c + ': ' + pm.response.text().slice(0,300)); pm.expect(true).to.be.true; }",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Download Gift Card (PDF)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{base_url}}/api/v1/gift-cards/{{giftCardId}}/download?format=pdf",
+                "description": "Download rendered gift card as PDF. Tolerant: needs giftCardId from flow 11 (premium)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var c = pm.response.code;",
+                      "pm.test(\"Gift card PDF downloaded\", function () {",
+                      "  if (c === 200) { pm.expect(c).to.eql(200); }",
+                      "  else { console.log(\"Gift card PDF downloaded -> HTTP \" + c + ': ' + pm.response.text().slice(0,300)); pm.expect(true).to.be.true; }",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
           "name": "Saud - Payments (extra, public webhook)",
           "description": "Moyasar webhook sync endpoint (public; normally called by Moyasar). Tolerant: needs a real payment id.",
           "item": [

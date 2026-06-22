@@ -65,7 +65,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/required-questions-answer/delete/**").hasAuthority("ADMIN")
 
                         // ---------- Everything else needs a logged-in user ----------
-                        .anyRequest().authenticated()
+                        .anyRequest().hasAuthority("USER")
                 )
                 .logout(logout -> logout
                         .logoutUrl("/api/v1/auth/logout")

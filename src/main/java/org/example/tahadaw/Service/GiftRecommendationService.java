@@ -263,7 +263,7 @@ public class GiftRecommendationService {
         if (giftPlan.getOccasionDate() != null) {
             context.append("Occasion date: ").append(giftPlan.getOccasionDate()).append('\n');
         }
-        context.append("Budget minor units: ").append(giftPlan.getBudget()).append('\n');
+        context.append("Budget in SAR: ").append(giftPlan.getBudget()).append('\n');
         context.append("Currency: ").append(giftPlan.getCurrency()).append('\n');
         if (giftPlan.getPreferredGiftStyle() != null) {
             context.append("Preferred gift style: ").append(giftPlan.getPreferredGiftStyle()).append('\n');
@@ -335,6 +335,8 @@ public class GiftRecommendationService {
                 - base the price on real-world prices for the named product; do NOT invent, guess randomly, or use placeholder/round fake numbers
                 - the price range must be in the same currency given in the context, and stay within the recipient's budget
                 - keep the range tight and credible (the max should not exceed the min by more than ~30%%)
+                - the productName of the suggested gifts should be real product name like : iPhone 16 , book Agatha,headphone hyperx
+                - priceBand should be in SAR
                 Context:
                 %s
                 """.formatted(context);

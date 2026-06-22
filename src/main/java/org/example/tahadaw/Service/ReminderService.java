@@ -10,6 +10,7 @@ import org.example.tahadaw.Repository.ReminderRepository;
 import org.example.tahadaw.Repository.UserRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -93,6 +94,8 @@ public class ReminderService {
     //Bayan
     //@Scheduled(cron = "0 0 8 * * *", zone = "Asia/Riyadh") //actual
     @Scheduled(fixedRate = 60000)                           //for test
+    @Transactional
+    
     public void checkTodayRemindersAndSendWhatsApp(){
 
         LocalDate today = LocalDate.now();
@@ -113,5 +116,7 @@ public class ReminderService {
         }
 
     }
+
+    
 
 }

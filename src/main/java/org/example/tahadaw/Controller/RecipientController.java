@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.Api.ApiResponse;
 import org.example.tahadaw.DTO.OUT.GiftHistoryDTOOut;
+import org.example.tahadaw.DTO.OUT.RecipientInsightsDTOOut;
 import org.example.tahadaw.Model.Recipient;
 import org.example.tahadaw.Model.User;
 import org.example.tahadaw.Service.GiftHistoryService;
@@ -49,6 +50,12 @@ public class RecipientController {
     public ResponseEntity<List<GiftHistoryDTOOut>> listGiftHistory(@AuthenticationPrincipal User user,
                                                                     @PathVariable Long recipientId) {
         return ResponseEntity.ok(giftHistoryService.listByRecipient(user.getId(), recipientId));
+    }
+
+    @GetMapping("/{recipientId}/insights")
+    public ResponseEntity<RecipientInsightsDTOOut> insights(@AuthenticationPrincipal User user,
+                                                            @PathVariable Long recipientId) {
+        return ResponseEntity.ok(giftHistoryService.recipientInsights(user.getId(), recipientId));
     }
 
     @GetMapping("/get-by-user-id")

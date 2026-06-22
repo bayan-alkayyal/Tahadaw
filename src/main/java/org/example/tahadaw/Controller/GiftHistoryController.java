@@ -6,12 +6,15 @@ import org.example.tahadaw.Api.ApiResponse;
 import org.example.tahadaw.DTO.IN.GiftHistoryLogDTOIn;
 import org.example.tahadaw.DTO.OUT.GiftHistoryDTOOut;
 import org.example.tahadaw.DTO.OUT.GiftHistorySummaryDTOOut;
+import org.example.tahadaw.DTO.OUT.SpendingStatsDTOOut;
 import org.example.tahadaw.Model.User;
 import org.example.tahadaw.Service.GiftHistoryService;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -56,5 +59,13 @@ public class GiftHistoryController {
     @GetMapping("/summary")
     public ResponseEntity<GiftHistorySummaryDTOOut> summary(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(giftHistoryService.summary(user.getId()));
+    }
+
+    @GetMapping("/spending-stats")
+    public ResponseEntity<SpendingStatsDTOOut> spendingStats(
+            @AuthenticationPrincipal User user,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(giftHistoryService.spendingStats(user.getId(), from, to));
     }
 }

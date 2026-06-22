@@ -85,9 +85,9 @@ public class AiQuestionService {
     public List<AiGeneratedQuestion> generateQuestions(Long userId, Long giftPlanId) {
         GiftPlan giftPlan = requireOwnedGiftPlan(userId, giftPlanId);
 
-//         if (!"REQUIRED_QUESTIONS_ANSWERED".equals(giftPlan.getStatus())) {
-//             throw new ApiException("Answer all required questions before generating AI questions.");
-//         }
+         if (!"REQUIRED_QUESTIONS_ANSWERED".equals(giftPlan.getStatus())) {
+             throw new ApiException("Answer all required questions before generating AI questions.");
+         }
 
         if (aiGeneratedQuestionRepository.existsByGiftPlan_Id(giftPlanId)) {
             throw new ApiException("AI questions already generated for this gift plan.");

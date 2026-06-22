@@ -5,6 +5,8 @@ import org.example.tahadaw.Api.ApiException;
 import org.example.tahadaw.DTO.IN.GiftHistoryLogDTOIn;
 import org.example.tahadaw.DTO.OUT.GiftHistoryDTOOut;
 import org.example.tahadaw.DTO.OUT.GiftHistorySummaryDTOOut;
+import org.example.tahadaw.DTO.OUT.RecipientInsightsDTOOut;
+import org.example.tahadaw.DTO.OUT.SpendingStatsDTOOut;
 import org.example.tahadaw.Model.GiftHistory;
 import org.example.tahadaw.Model.GiftPlan;
 import org.example.tahadaw.Model.Recipient;
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -153,6 +156,126 @@ public class GiftHistoryService {
                 Collectors.counting()));
 
         return new GiftHistorySummaryDTOOut(total, totalSpent, total, 0, byOccasion, byRecipient);
+    }
+
+    /**
+     * Time-bounded spending breakdown. {@code from}/{@code to} are inclusive and optional; a gift is
+     * placed in the window by its occasion date (falling back to when the product was selected).
+     */
+    public SpendingStatsDTOOut spendingStats(Long userId, LocalDate from, LocalDate to) {
+        userRepository.findUserById(userId)
+                .orElseThrow(() -> new ApiException("User not found."));
+
+        List<SelectedProduct> filtered = selectedProductRepository
+                .findByUser_IdAndIsSelectedTrueOrderByCreatedAtDesc(userId).stream()
+                .filter(product -> withinWindow(effectiveDate(product), from, to))
+                .toList();
+
+        double totalSpent = filtered.stream()
+                .filter(product -> product.getPrice() != null)
+                .mapToDouble(SelectedProduct::getPrice)
+                .sum();
+        long giftCount = filtered.size();
+        double averagePerGift = giftCount > 0 ? totalSpent / giftCount : 0.0;
+
+        Map<String, Double> spentByRecipient = filtered.stream().collect(Collectors.groupingBy(
+                product -> product.getRecipient() != null && product.getRecipient().getName() != null
+                        ? product.getRecipient().getName() : "UNKNOWN",
+                Collectors.summingDouble(product -> product.getPrice() != null ? product.getPrice() : 0.0)));
+        Map<String, Double> spentByOccasion = filtered.stream().collect(Collectors.groupingBy(
+                product -> product.getGiftPlan() != null
+                        && product.getGiftPlan().getOccasionType() != null
+                        && !product.getGiftPlan().getOccasionType().isBlank()
+                        ? product.getGiftPlan().getOccasionType() : "UNKNOWN",
+                Collectors.summingDouble(product -> product.getPrice() != null ? product.getPrice() : 0.0)));
+
+        return new SpendingStatsDTOOut(from, to, giftCount, totalSpent, averagePerGift,
+                spentByRecipient, spentByOccasion);
+    }
+
+    /**
+     * Aggregated view of everything gifted to a single recipient: totals, last gift, occasion/store
+     * breakdowns and a chronological spend timeline.
+     */
+    public RecipientInsightsDTOOut recipientInsights(Long userId, Long recipientId) {
+        Recipient recipient = requireOwnedRecipient(userId, recipientId);
+
+        List<SelectedProduct> products = selectedProductRepository
+                .findByRecipient_IdAndIsSelectedTrueOrderByCreatedAtDesc(recipientId);
+
+        double totalSpent = products.stream()
+                .filter(product -> product.getPrice() != null)
+                .mapToDouble(SelectedProduct::getPrice)
+                .sum();
+        long totalGifts = products.size();
+        double averagePerGift = totalGifts > 0 ? totalSpent / totalGifts : 0.0;
+
+        SelectedProduct lastGift = products.stream()
+                .filter(product -> effectiveDate(product) != null)
+                .max(Comparator.comparing(GiftHistoryService::effectiveDate))
+                .orElse(null);
+        LocalDate lastGiftDate = lastGift != null ? effectiveDate(lastGift) : null;
+        String lastGiftName = lastGift != null ? lastGift.getProductName() : null;
+
+        Map<String, Long> giftsByOccasion = products.stream().collect(Collectors.groupingBy(
+                GiftHistoryService::occasionOf, Collectors.counting()));
+        Map<String, Double> spentByOccasion = products.stream().collect(Collectors.groupingBy(
+                GiftHistoryService::occasionOf,
+                Collectors.summingDouble(product -> product.getPrice() != null ? product.getPrice() : 0.0)));
+
+        List<RecipientInsightsDTOOut.TopStore> topStores = products.stream()
+                .filter(product -> product.getStoreName() != null && !product.getStoreName().isBlank())
+                .collect(Collectors.groupingBy(SelectedProduct::getStoreName, Collectors.counting()))
+                .entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(5)
+                .map(entry -> new RecipientInsightsDTOOut.TopStore(entry.getKey(), entry.getValue()))
+                .toList();
+
+        List<RecipientInsightsDTOOut.TimelinePoint> spendTimeline = products.stream()
+                .filter(product -> effectiveDate(product) != null)
+                .sorted(Comparator.comparing(GiftHistoryService::effectiveDate))
+                .map(product -> new RecipientInsightsDTOOut.TimelinePoint(
+                        effectiveDate(product), product.getProductName(), product.getPrice()))
+                .toList();
+
+        return new RecipientInsightsDTOOut(
+                recipient.getId(),
+                recipient.getName(),
+                totalGifts,
+                totalSpent,
+                averagePerGift,
+                lastGiftDate,
+                lastGiftName,
+                giftsByOccasion,
+                spentByOccasion,
+                topStores,
+                spendTimeline
+        );
+    }
+
+    private static String occasionOf(SelectedProduct product) {
+        return product.getGiftPlan() != null
+                && product.getGiftPlan().getOccasionType() != null
+                && !product.getGiftPlan().getOccasionType().isBlank()
+                ? product.getGiftPlan().getOccasionType() : "UNKNOWN";
+    }
+
+    private static boolean withinWindow(LocalDate date, LocalDate from, LocalDate to) {
+        if (date == null) {
+            return false;
+        }
+        if (from != null && date.isBefore(from)) {
+            return false;
+        }
+        return to == null || !date.isAfter(to);
+    }
+
+    private static LocalDate effectiveDate(SelectedProduct product) {
+        if (product.getGiftPlan() != null && product.getGiftPlan().getOccasionDate() != null) {
+            return product.getGiftPlan().getOccasionDate();
+        }
+        return product.getCreatedAt() != null ? product.getCreatedAt().toLocalDate() : null;
     }
 
     private Recipient requireOwnedRecipient(Long userId, Long recipientId) {
