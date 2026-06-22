@@ -48,23 +48,23 @@ public class SecurityConfig {
                                 "/api/v1/required-questions/delete/**",
                                 "/api/v1/required-questions/disable/**").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/required-questions/get").hasAuthority("ADMIN")
-                        // AI-question raw CRUD (admin tooling).
+                        // AI-question CRUD admin only
                         .requestMatchers(HttpMethod.POST, "/api/v1/ai-questions/create/**").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/ai-questions/get", "/api/v1/ai-questions/get-by-id/**").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/ai-questions/update/**").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/ai-questions/delete/**").hasAuthority("ADMIN")
-                        // AI-answer raw CRUD (admin tooling).
+                        // AI-answer CRUD admin only
                         .requestMatchers(HttpMethod.POST, "/api/v1/ai-answers/ai-question/**").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/ai-answers/get", "/api/v1/ai-answers/get-by-id/**").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/ai-answers/update/**").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/ai-answers/delete/**").hasAuthority("ADMIN")
-                        // Required-question-answer raw CRUD (admin tooling).
+                        // required question-answer CRUD
                         .requestMatchers(HttpMethod.POST, "/api/v1/required-questions-answer/required-question/**").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/required-questions-answer/get", "/api/v1/required-questions-answer/get-by-id/**").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/required-questions-answer/update/**").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/required-questions-answer/delete/**").hasAuthority("ADMIN")
 
-                        // ---------- Everything else needs a logged-in user ----------
+                        // everything else needs a logged-in user
                         .anyRequest().authenticated()
                 )
                 .logout(logout -> logout
