@@ -603,6 +603,26 @@ extraSubs.push(folder('Saud - Gift History (extra)',
   ]
 ));
 
+extraSubs.push(folder('Saud - Dashboard & Analytics (extra)',
+  'New aggregated/analytics endpoints. Run after main flows so recipientId, giftCardId, and history data are available.',
+  [
+    req('Get Dashboard', 'GET', B + '/api/v1/dashboard', {
+      desc: 'Aggregated home screen: upcoming reminders, active plans count, recent gifts, premium status, pending group-gift votes.'
+    }),
+    req('Get Spending Stats', 'GET', B + '/api/v1/gift-history/spending-stats?from=2026-01-01&to=2026-12-31', {
+      desc: 'Time-bounded spending breakdown. Query params from and to are optional (ISO dates).'
+    }),
+    req('Get Recipient Insights', 'GET', B + '/api/v1/recipients/' + R + '/insights', {
+      desc: 'Per-recipient gifting insights: totals, occasions, top stores, spend timeline.',
+      test: tolerant('Recipient insights fetched')
+    }),
+    req('Download Gift Card (PDF)', 'GET', B + '/api/v1/gift-cards/{{giftCardId}}/download?format=pdf', {
+      desc: 'Download rendered gift card as PDF. Tolerant: needs giftCardId from flow 11 (premium).',
+      test: tolerant('Gift card PDF downloaded')
+    })
+  ]
+));
+
 extraSubs.push(folder('Saud - Payments (extra, public webhook)',
   'Moyasar webhook sync endpoint (public; normally called by Moyasar). Tolerant: needs a real payment id.',
   [

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>تهادوا — بوستر المشروع (A4)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --cream:#F4ECDA; --cream-2:#FBF6EA; --rosewood:#B46A72; --rosewood-deep:#9C545C;
+  --sage:#A8B58A; --sage-deep:#6F7E50; --sky:#A9B7C6; --sky-deep:#5E7187;
+  --blush:#F7C8D3; --gold:#C9A86A; --ink:#22303C; --ink-soft:#46535F; --muted:#7C8794;
+  --line:rgba(34,48,60,.10); --sans:'Tajawal',system-ui,sans-serif; --arab:'Amiri',serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#1a1820;font-family:var(--sans);color:var(--ink);
+  display:flex;justify-content:center;padding:24px 14px;-webkit-font-smoothing:antialiased}
+
+/* ============ A4 CANVAS (210×297mm @96dpi = 794×1123px) ============ */
+.poster{
+  position:relative;width:794px;min-height:1123px;flex-shrink:0;border-radius:14px;overflow:hidden;
+  padding:22px 26px 18px;
+  background:
+    radial-gradient(circle at 16% 6%, rgba(247,200,211,.16) 0%, transparent 26%),
+    radial-gradient(circle at 88% 18%, rgba(168,181,138,.15) 0%, transparent 26%),
+    radial-gradient(circle at 50% 104%, rgba(169,183,198,.18) 0%, transparent 34%),
+    linear-gradient(160deg,#2C3947 0%,#26222E 55%,#2A2230 100%);
+  box-shadow:0 40px 120px -30px rgba(0,0,0,.8);
+}
+.bg-deco{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg-deco svg{position:absolute;opacity:.5}
+.bg-deco .v{position:absolute;border-radius:50%;filter:blur(8px)}
+.poster>*{position:relative;z-index:1}
+
+/* ============ HEADER ============ */
+.head{display:flex;align-items:center;justify-content:flex-end;direction:ltr;margin:2px 4px 12px}
+.tuwaiq{display:flex;align-items:center;gap:10px}
+.tuwaiq .tx{text-align:left;line-height:1.1}
+.tuwaiq .ar{font-family:var(--arab);font-weight:700;font-size:18px;color:#F3EADC}
+.tuwaiq .en{font-size:10.5px;font-weight:600;letter-spacing:.04em;color:#C9BFD6}
+.tuwaiq .mark{width:38px;height:38px}
+
+/* ============ CARDS ============ */
+.card{background:var(--cream);border:1px solid rgba(255,255,255,.5);border-radius:16px;
+  box-shadow:0 14px 34px -22px rgba(0,0,0,.6);padding:14px 20px}
+.card+.card,.row+.row,.row+.card,.card+.row{margin-top:11px}
+
+.title-card{text-align:center;padding:14px 20px 13px}
+.title-card .logo{width:80px;height:80px;display:block;margin:0 auto 2px}
+.title-card .tag{font-size:16.5px;color:var(--ink-soft);font-weight:500;margin-top:4px}
+.title-card .hadith{font-family:var(--arab);font-weight:700;font-size:22px;color:var(--sage-deep);margin-top:7px}
+
+.desc-card p{font-size:15px;line-height:1.62;color:var(--ink-soft);text-align:center}
+.desc-card p b{color:var(--ink);font-weight:700}
+
+.row{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.feat h3{display:flex;align-items:center;gap:8px;font-size:16.5px;font-weight:800;color:var(--ink);margin-bottom:5px}
+.feat h3 .d{width:10px;height:10px;border-radius:50%;background:var(--rosewood);flex:0 0 auto}
+.feat p{font-size:13.5px;line-height:1.55;color:var(--muted)}
+
+.wide-card{background:linear-gradient(135deg,#FBEEE6,#F4ECDA);border:1px solid rgba(180,106,114,.25)}
+.wide-card h3{display:flex;align-items:center;justify-content:center;gap:9px;font-size:18.5px;font-weight:800;color:var(--rosewood-deep);margin-bottom:6px}
+.wide-card h3 .d{width:11px;height:11px;border-radius:50%;background:var(--rosewood)}
+.wide-card p{font-size:14px;line-height:1.6;color:var(--ink-soft);text-align:center}
+
+.seclbl{text-align:center;font-size:12px;font-weight:800;letter-spacing:.12em;color:#E7DCCB;text-transform:uppercase;margin:11px 0 8px;opacity:.92}
+
+/* tech: 6 columns × 2 rows, icon-only glyphs (name below) */
+.tech{display:grid;grid-template-columns:repeat(6,1fr);gap:12px 10px}
+.t{display:flex;flex-direction:column;align-items:center;gap:6px}
+.t .g{width:100%;aspect-ratio:1;border-radius:18px;background:#fff;display:grid;place-items:center;
+  box-shadow:0 6px 16px -10px rgba(0,0,0,.4)}
+.t .g svg{width:58%;height:58%}
+.t .n{font-size:11px;font-weight:600;color:var(--ink-soft);text-align:center}
+
+/* contact QR */
+.contact-card{display:flex;justify-content:center}
+.qr{display:flex;flex-direction:column;align-items:center;gap:8px}
+.qr .box{width:118px;height:118px;background:#fff;border-radius:13px;padding:8px;box-shadow:0 6px 16px -10px rgba(0,0,0,.4)}
+.qr .box img{width:100%;height:100%;display:block;border-radius:4px}
+.qr .lbl{font-size:15px;font-weight:700;color:var(--ink)}
+.qr .url{font-size:11.5px;color:var(--muted);direction:ltr;letter-spacing:.01em}
+
+.foot{text-align:center;margin-top:12px;font-size:12px;color:#C9BFD6}
+.foot b{color:#F3EADC}
+
+@page{size:A4 portrait;margin:0}
+@media print{body{background:#fff;padding:0}.poster{box-shadow:none;border-radius:0;min-height:1123px}}
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <div class="bg-deco">
+    <span class="v" style="width:280px;height:280px;left:-90px;top:-70px;background:radial-gradient(circle,rgba(247,200,211,.30),transparent 70%)"></span>
+    <span class="v" style="width:300px;height:300px;right:-110px;top:110px;background:radial-gradient(circle,rgba(168,181,138,.24),transparent 70%)"></span>
+    <span class="v" style="width:340px;height:340px;left:32%;bottom:-130px;background:radial-gradient(circle,rgba(169,183,198,.24),transparent 70%)"></span>
+    <svg style="width:210px;height:210px;left:-40px;top:-20px" viewBox="0 0 100 100" fill="none"><path d="M10 90 C20 40 55 15 92 8 C70 35 55 70 12 92 Z" fill="#3a4a3a" opacity="0.5"/></svg>
+    <svg style="width:190px;height:190px;right:-30px;bottom:-30px;transform:rotate(180deg)" viewBox="0 0 100 100" fill="none"><path d="M10 90 C20 40 55 15 92 8 C70 35 55 70 12 92 Z" fill="#43344a" opacity="0.5"/></svg>
+    <svg style="width:16px;height:16px;left:60px;top:180px;opacity:.5" viewBox="0 0 24 24"><path d="M12 2l2 8 8 2-8 2-2 8-2-8-8-2 8-2z" fill="#F7C8D3"/></svg>
+    <svg style="width:12px;height:12px;right:80px;top:80px;opacity:.5" viewBox="0 0 24 24"><path d="M12 2l2 8 8 2-8 2-2 8-2-8-8-2 8-2z" fill="#FFF7E6"/></svg>
+  </div>
+
+  <!-- HEADER -->
+  <div class="head">
+    <div class="tuwaiq">
+      <div class="tx"><div class="ar">أكاديمية طويق</div><div class="en">Tuwaiq Academy</div></div>
+      <svg class="mark" viewBox="0 0 48 48" fill="none"><path d="M6 32 L20 8 L27 20 L17 38 Z" fill="#6A3FA0"/><path d="M24 38 L34 20 L40 30 L34 42 Z" fill="#A06BD6"/></svg>
+    </div>
+  </div>
+
+  <!-- TITLE -->
+  <div class="card title-card">
+    <img class="logo" src="__LOGO_DATA_URI__" alt="تهادوا" />
+    <div class="tag">منصة ذكية لتخطيط الهدايا وبطاقات الإهداء</div>
+    <div class="hadith">«تَهَادَوْا تَحَابُّوا»</div>
+  </div>
+
+  <!-- DESCRIPTION -->
+  <div class="card desc-card">
+    <p>تهادوا منصة ذكية تعتمد على <b>الذكاء الاصطناعي</b>، تأخذك من حيرة «ماذا أُهدي؟» إلى هديةٍ حقيقية ومدروسة. تتذكّر الأشخاص الذين تُهديهم، وتفهم المناسبة، وتقترح <b>الأفكار قبل المنتجات</b>، وتتجنّب تكرار الهدايا — في تجربةٍ واحدةٍ متكاملة.</p>
+  </div>
+
+  <!-- FEATURES -->
+  <div class="row">
+    <div class="card feat"><h3><span class="d"></span> ذاكرة الأشخاص</h3><p>ملفات لمن تُهديهم تحفظ اهتماماتهم وصلتك بهم، لتوصياتٍ أدفأ ودون تكرار.</p></div>
+    <div class="card feat"><h3><span class="d"></span> أفكارٌ قبل المنتجات</h3><p>يقترح الذكاء الاصطناعي أفكار هدايا تناسب الشخص والمناسبة، ثم يجد المنتج الحقيقي.</p></div>
+  </div>
+  <div class="row">
+    <div class="card feat"><h3><span class="d"></span> رسالة هدية شخصية</h3><p>توليد رسالةٍ بنبرةٍ ولغةٍ ولهجةٍ تناسبك (مثل العربية/السعودية) — مجانًا للجميع.</p></div>
+    <div class="card feat"><h3><span class="d"></span> هديةٌ جماعية وتذكيرات</h3><p>تصويتٌ جماعي عبر رابطٍ خاص، وتذكيرٌ بالمناسبات عبر البريد وواتساب والتطبيق.</p></div>
+  </div>
+
+  <!-- STANDOUT -->
+  <div class="card wide-card">
+    <h3><span class="d"></span> بطاقة الهدية الرقمية وخطة المفاجأة</h3>
+    <p>بطاقة هدية أنيقة برمز <b>QR</b> تُفتح برسالةٍ خاصة، تُنشأ تلقائيًا وتُرسَل عبر البريد. ومعها <b>خطة مفاجأة</b> يصنعها الذكاء الاصطناعي — مزايا Premium بدفعةٍ واحدة، دون اشتراك.</p>
+  </div>
+
+  <!-- TECH -->
+  <div class="seclbl">التقنيات والتكاملات</div>
+  <div class="card">
+    <div class="tech">
+      <div class="t"><span class="g"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#6DB33F"/><path d="M9 20.5c5 3 11.5 1.4 13.7-4.8" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M20.3 8.8l2.6 1-.7 2.7" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="n">Spring Boot</span></div>
+      <div class="t"><span class="g"><svg viewBox="0 0 32 32"><g stroke="#0F9D7E" stroke-width="2.6" stroke-linecap="round"><path d="M16 6v20M7.3 11l17.4 10M7.3 21l17.4-10"/></g></svg></span><span class="n">OpenAI</span></div>
+      <div class="t"><span class="g"><svg viewBox="0 0 32 32"><text x="16" y="16" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="11" fill="#232F3E">aws</text><path d="M7 21c6 3.4 12 3.4 18 0" stroke="#FF9900" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M22.5 19.3l3 1.7-2.6 1.9" stroke="#FF9900" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="n">AWS</span></div>
+      <div class="t"><span class="g"><svg viewBox="0 0 32 32"><g fill="#2496ED"><rect x="9" y="12" width="3.4" height="3.4"/><rect x="13" y="12" width="3.4" height="3.4"/><rect x="17" y="12" width="3.4" height="3.4"/><rect x="13" y="8" width="3.4" height="3.4"/><rect x="17" y="8" width="3.4" height="3.4"/><rect x="21" y="12" width="3.4" height="3.4"/></g><path d="M4 17c.8 5 6 7 10.5 7 6.5 0 11-3.3 12.5-7.5 1.6.5 3.2.2 4-1-1.2-1.5-2.9-1.3-3.8-.7-.7-2.2-2.6-3.2-2.6-3.2H4z" fill="#2496ED"/></svg></span><span class="n">Docker</span></div>
+      <div class="t"><span class="g"><svg viewBox="0 0 32 32"><g fill="#00758F"><ellipse cx="16" cy="9" rx="9" ry="3.4"/><path d="M7 9v6c0 1.9 4 3.4 9 3.4s9-1.5 9-3.4V9c0 1.9-4 3.4-9 3.4S7 10.9 7 9z" opacity=".85"/><path d="M7 15v6c0 1.9 4 3.4 9 3.4s9-1.5 9-3.4v-6c0 1.9-4 3.4-9 3.4S7 16.9 7 15z" opacity=".7"/></g></svg></span><span class="n">MySQL</span></div>
+      <div class="t"><span class="g"><svg viewBox="0 0 32 32"><rect x="4" y="9" width="24" height="15" rx="3" fill="#17A2A2"/><rect x="4" y="13" width="24" height="3.2" fill="#0E7C82"/><rect x="7" y="19" width="8" height="2.4" rx="1.2" fill="#fff" opacity=".9"/></svg></span><span class="n">Moyasar</span></div>
+      <div class="t"><span class="g"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#25D366"/><path d="M16 8.5a7.5 7.5 0 0 0-6.5 11.2L8.4 24l4.4-1.1A7.5 7.5 0 1 0 16 8.5z" fill="#fff"/><path d="M12.7 12.2c-.3 0-.6.1-.8.4-.3.3-.9.9-.9 2.1s.9 2.4 1 2.6c.1.2 1.8 2.9 4.5 3.9 2.2.8 2.7.7 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2-.1-.1-.3-.2-.6-.4-.3-.2-1.5-.8-1.8-.8-.2-.1-.4-.1-.6.1-.2.3-.6.8-.8 1-.1.1-.3.2-.5.1-.3-.1-1.1-.4-2-1.3-.7-.6-1.2-1.4-1.4-1.7-.1-.2 0-.4.1-.5l.4-.5c.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5 0-.1-.6-1.5-.8-2-.2-.5-.4-.4-.6-.5z" fill="#25D366"/></svg></span><span class="n">WhatsApp</span></div>
+      <div class="t"><span class="g"><svg viewBox="0 0 32 32"><rect x="4" y="8" width="24" height="16" rx="2.5" fill="#fff" stroke="#E0E0E0" stroke-width="1"/><path d="M5 9.5l11 8 11-8" fill="none" stroke="#EA4335" stroke-width="2.6" stroke-linejoin="round"/><path d="M5.5 23V11l10.5 7.6L26.5 11v12" fill="none" stroke="#EA4335" stroke-width="2.4" stroke-linejoin="round"/></svg></span><span class="n">Email</span></div>
+      <div class="t"><span class="g"><svg viewBox="0 0 32 32"><defs><linearGradient id="ij" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#087CFA"/><stop offset=".5" stop-color="#E64DA0"/><stop offset="1" stop-color="#FE9F0C"/></linearGradient></defs><rect x="3" y="3" width="26" height="26" rx="6" fill="url(#ij)"/><text x="16" y="25" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="12" fill="#fff">IJ</text></svg></span><span class="n">IntelliJ</span></div>
+      <div class="t"><span class="g"><svg viewBox="0 0 32 32"><defs><linearGradient id="dg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22D88F"/><stop offset="1" stop-color="#9775F8"/></linearGradient></defs><rect x="3" y="3" width="26" height="26" rx="6" fill="url(#dg)"/><text x="16" y="25" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="12" fill="#fff">DG</text></svg></span><span class="n">DataGrip</span></div>
+      <div class="t"><span class="g"><svg viewBox="0 0 57 57"><g transform="translate(9.5,0)"><path fill="#1abcfe" d="M19 28.5a9.5 9.5 0 1 1 19 0 9.5 9.5 0 0 1-19 0z"/><path fill="#0acf83" d="M0 47.5A9.5 9.5 0 0 1 9.5 38H19v9.5a9.5 9.5 0 1 1-19 0z"/><path fill="#ff7262" d="M19 0v19h9.5a9.5 9.5 0 1 0 0-19H19z"/><path fill="#f24e1e" d="M0 9.5A9.5 9.5 0 0 0 9.5 19H19V0H9.5A9.5 9.5 0 0 0 0 9.5z"/><path fill="#a259ff" d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z"/></g></svg></span><span class="n">Figma</span></div>
+      <div class="t"><span class="g"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#FF6C37"/><path d="M11 21l7.5-7.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/><path d="M16.6 11.6l3 .6.6 3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12.3" cy="19.7" r="2.3" fill="#fff"/></svg></span><span class="n">Postman</span></div>
+    </div>
+  </div>
+
+  <!-- CONTACT QR -->
+  <div class="seclbl">للتواصل مع الفريق</div>
+  <div class="card contact-card">
+    <div class="qr">
+      <div class="box"><img src="__QR_DATA_URI__" alt="QR"/></div>
+      <div class="lbl">تواصل معنا</div>
+      <div class="url">saudshafie.github.io/TahadawConntact</div>
+    </div>
+  </div>
+
+  <div class="foot">مشروع تخرّج · <b>Spring Boot + AI</b> · «تَهَادَوْا تَحَابُّوا»</div>
+
+</div>
+</body>
+</html>

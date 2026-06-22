@@ -9,6 +9,7 @@ import org.example.tahadaw.DTO.IN.GiftCardUpdateDTOIn;
 import org.example.tahadaw.DTO.OUT.GiftCardDTOOut;
 import org.example.tahadaw.Model.User;
 import org.example.tahadaw.Service.GiftCardService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -59,6 +60,27 @@ public class GiftCardController {
         return ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_PNG)
                 .body(giftCardService.getCardImage(user.getId(), giftCardId));
+    }
+
+    @GetMapping("/{giftCardId}/download")
+    public ResponseEntity<byte[]> download(@AuthenticationPrincipal User user,
+                                           @PathVariable Long giftCardId,
+                                           @RequestParam(defaultValue = "pdf") String format) {
+        if ("png".equalsIgnoreCase(format)) {
+            byte[] png = giftCardService.getCardImage(user.getId(), giftCardId);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.IMAGE_PNG)
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"gift-card-" + giftCardId + ".png\"")
+                    .body(png);
+        }
+
+        byte[] pdf = giftCardService.getCardPdf(user.getId(), giftCardId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"gift-card-" + giftCardId + ".pdf\"")
+                .body(pdf);
     }
 
     @PostMapping("/{giftCardId}/send-email")
