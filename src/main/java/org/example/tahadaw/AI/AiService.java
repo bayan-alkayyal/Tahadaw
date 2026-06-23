@@ -2,12 +2,15 @@ package org.example.tahadaw.AI;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -47,6 +50,15 @@ public class AiService {
     @Value("${ai.reasoning-effort:low}")
     private String reasoningEffort;
 
+    /** Seconds to wait for the API to respond. Reasoning models can be slow, so keep this generous. */
+    @Value("${ai.read-timeout-seconds:120}")
+    private int readTimeoutSeconds;
+
+    @Value("${ai.connect-timeout-seconds:15}")
+    private int connectTimeoutSeconds;
+
+    private volatile RestClient client;
+
     /**
      * Sends a prompt to the chat API and returns a JSON string.
      *
@@ -62,12 +74,7 @@ public class AiService {
         Map<String, Object> body = buildRequestBody(prompt);
 
         try {
-            RestClient client = RestClient.builder()
-                    .baseUrl(baseUrl)
-                    .defaultHeader("Authorization", "Bearer " + apiKey)
-                    .build();
-
-            String responseBody = client.post()
+            String responseBody = restClient().post()
                     .uri("/chat/completions")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
@@ -82,8 +89,48 @@ public class AiService {
         } catch (RestClientResponseException ex) {
             throw new AiException("AI API error: " + ex.getStatusCode() + " — " + ex.getResponseBodyAsString(), ex);
         } catch (Exception ex) {
-            throw new AiException("AI request failed: " + ex.getMessage(), ex);
+            throw new AiException("AI request failed: " + describeError(ex), ex);
         }
+    }
+
+    /**
+     * Builds the RestClient once and reuses it. Forces HTTP/1.1 (the JDK HTTP/2 client can fail against
+     * the OpenAI endpoint with an opaque "I/O error ... null") and sets connect/read timeouts so slow
+     * reasoning calls surface as a clear timeout instead of hanging.
+     */
+    private RestClient restClient() {
+        RestClient local = client;
+        if (local == null) {
+            synchronized (this) {
+                local = client;
+                if (local == null) {
+                    HttpClient httpClient = HttpClient.newBuilder()
+                            .version(HttpClient.Version.HTTP_1_1)
+                            .connectTimeout(Duration.ofSeconds(connectTimeoutSeconds))
+                            .build();
+                    JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
+                    factory.setReadTimeout(Duration.ofSeconds(readTimeoutSeconds));
+                    local = RestClient.builder()
+                            .requestFactory(factory)
+                            .baseUrl(baseUrl)
+                            .defaultHeader("Authorization", "Bearer " + apiKey)
+                            .build();
+                    client = local;
+                }
+            }
+        }
+        return local;
+    }
+
+    /** The underlying I/O exception often has a null message, so include the type and root cause. */
+    private static String describeError(Throwable ex) {
+        Throwable root = ex;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        String detail = ex.getMessage() != null ? ex.getMessage()
+                : root.getClass().getSimpleName() + (root.getMessage() != null ? ": " + root.getMessage() : "");
+        return ex.getClass().getSimpleName() + " — " + detail;
     }
 
     private Map<String, Object> buildRequestBody(String prompt) {
