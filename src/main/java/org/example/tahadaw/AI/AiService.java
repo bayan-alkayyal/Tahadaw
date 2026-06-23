@@ -5,9 +5,12 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -15,6 +18,9 @@ import java.util.Map;
  * <p>
  * {@link #ask(String)} always requests a JSON object from the API ({@code response_format: json_object}).
  * Put the exact JSON shape you need inside {@code prompt}.
+ * <p>
+ * GPT-5.x / o-series models use {@code max_completion_tokens} and {@code reasoning_effort} instead of
+ * the legacy {@code max_tokens} + {@code temperature} pair used by gpt-4o-mini.
  */
 @Service
 public class AiService {
@@ -22,17 +28,24 @@ public class AiService {
     private static final String JSON_SYSTEM_MESSAGE =
             "You must respond with a single valid JSON object only. No markdown, no code fences, no extra text.";
 
+    private static final JsonMapper JSON = JsonMapper.builder().build();
+
     @Value("${openai.api.key:}")
     private String apiKey;
 
-    @Value("${ai.model:gpt-4o-mini}")
+    @Value("${ai.model:gpt-5.5}")
     private String model;
 
     @Value("${ai.base-url:https://api.openai.com/v1}")
     private String baseUrl;
 
-    @Value("${ai.max-tokens:1000}")
+    /** Mapped to max_completion_tokens on GPT-5 / o-series; max_tokens on legacy chat models. */
+    @Value("${ai.max-tokens:4000}")
     private int maxTokens;
+
+    /** GPT-5 only: none | low | medium | high | xhigh. Ignored for legacy models. */
+    @Value("${ai.reasoning-effort:low}")
+    private String reasoningEffort;
 
     /**
      * Sends a prompt to the chat API and returns a JSON string.
@@ -46,15 +59,7 @@ public class AiService {
                     "AI is not configured. Add openai.api.key to application-local.properties (copy from application-local.properties.example).");
         }
 
-        Map<String, Object> body = new HashMap<>();
-        body.put("model", model);
-        body.put("messages", List.of(
-                Map.of("role", "system", "content", JSON_SYSTEM_MESSAGE),
-                Map.of("role", "user", "content", prompt)
-        ));
-        body.put("response_format", Map.of("type", "json_object"));
-        body.put("temperature", 0);
-        body.put("max_tokens", maxTokens);
+        Map<String, Object> body = buildRequestBody(prompt);
 
         try {
             RestClient client = RestClient.builder()
@@ -79,6 +84,43 @@ public class AiService {
         } catch (Exception ex) {
             throw new AiException("AI request failed: " + ex.getMessage(), ex);
         }
+    }
+
+    private Map<String, Object> buildRequestBody(String prompt) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", model);
+        body.put("messages", List.of(
+                Map.of("role", "system", "content", JSON_SYSTEM_MESSAGE),
+                Map.of("role", "user", "content", prompt)
+        ));
+        body.put("response_format", Map.of("type", "json_object"));
+
+        if (usesReasoningModelParams()) {
+            body.put("max_completion_tokens", maxTokens);
+            body.put("reasoning_effort", reasoningEffort);
+        } else {
+            body.put("max_tokens", maxTokens);
+            body.put("temperature", 0);
+        }
+        return body;
+    }
+
+    /**
+     * GPT-5 / o-series chat models reject {@code max_tokens} and expect {@code max_completion_tokens}.
+     */
+    static boolean usesReasoningModelParams(String model) {
+        if (model == null || model.isBlank()) {
+            return false;
+        }
+        String normalized = model.toLowerCase(Locale.ROOT);
+        return normalized.startsWith("gpt-5")
+                || normalized.startsWith("o1")
+                || normalized.startsWith("o3")
+                || normalized.startsWith("o4");
+    }
+
+    private boolean usesReasoningModelParams() {
+        return usesReasoningModelParams(model);
     }
 
     static String normalizeJsonContent(String content) {
@@ -111,41 +153,34 @@ public class AiService {
         if (responseBody == null || responseBody.isBlank()) {
             throw new AiException("AI returned an empty response.");
         }
-        String marker = "\"content\"";
-        int markerIndex = responseBody.indexOf(marker);
-        if (markerIndex < 0) {
-            throw new AiException("AI response did not contain message content.");
-        }
-        int valueStart = responseBody.indexOf('"', markerIndex + marker.length());
-        if (valueStart < 0) {
-            throw new AiException("AI response did not contain message content.");
-        }
-        valueStart++;
-
-        StringBuilder content = new StringBuilder();
-        for (int i = valueStart; i < responseBody.length(); i++) {
-            char c = responseBody.charAt(i);
-            if (c == '\\' && i + 1 < responseBody.length()) {
-                char next = responseBody.charAt(++i);
-                switch (next) {
-                    case 'n' -> content.append('\n');
-                    case 'r' -> content.append('\r');
-                    case 't' -> content.append('\t');
-                    case '"' -> content.append('"');
-                    case '\\' -> content.append('\\');
-                    default -> content.append(next);
-                }
-            } else if (c == '"') {
-                break;
-            } else {
-                content.append(c);
+        try {
+            JsonNode root = JSON.readTree(responseBody);
+            JsonNode error = root.path("error");
+            if (!error.isMissingNode()) {
+                String message = error.path("message").asText("Unknown AI error");
+                throw new AiException("AI API error: " + message);
             }
-        }
 
-        String text = content.toString().trim();
-        if (text.isEmpty()) {
-            throw new AiException("AI returned an empty response.");
+            JsonNode choices = root.path("choices");
+            if (!choices.isArray() || choices.isEmpty()) {
+                throw new AiException("AI response did not contain choices.");
+            }
+
+            JsonNode message = choices.get(0).path("message");
+            JsonNode refusal = message.path("refusal");
+            if (refusal.isTextual() && !refusal.asText().isBlank()) {
+                throw new AiException("AI refused the request: " + refusal.asText());
+            }
+
+            JsonNode content = message.path("content");
+            if (content.isNull() || !content.isTextual() || content.asText().isBlank()) {
+                throw new AiException("AI returned an empty response.");
+            }
+            return content.asText();
+        } catch (AiException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new AiException("Failed to parse AI response: " + ex.getMessage(), ex);
         }
-        return text;
     }
 }

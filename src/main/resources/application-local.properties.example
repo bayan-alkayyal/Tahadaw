@@ -1,4 +1,4 @@
-tahadaw# Copy this file to application-local.properties (same folder).
+#tahadaw# Copy this file to application-local.properties (same folder).
 # application-local.properties is gitignored — use it for secrets and API keys.
 
 # --- Database (local) ---
@@ -16,9 +16,11 @@ spring.datasource.password=
 # --- AI (required for AiService.ask) ---
 # openai.api.key=sk-your-key-here
 # Optional AI tuning (defaults shown):
-# ai.model=gpt-4o-mini
+# ai.model=gpt-5.5
 # ai.base-url=https://api.openai.com/v1
-# ai.max-tokens=1000
+# ai.max-tokens=4000
+# ai.reasoning-effort=low
+# For legacy gpt-4o-mini use ai.model=gpt-4o-mini (uses max_tokens + temperature instead)
 
 # --- Email (required for gift cards, receipts, and reminders) ---
 # spring.mail.host=smtp.gmail.com
