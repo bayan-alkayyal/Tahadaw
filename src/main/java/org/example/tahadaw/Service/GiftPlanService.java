@@ -45,7 +45,7 @@ public class GiftPlanService {
         giftPlan.setOccasionType(request.getOccasionType());
         giftPlan.setOccasionDate(request.getOccasionDate());
         giftPlan.setBudget(request.getBudget());
-        giftPlan.setCurrency(request.getCurrency());
+        giftPlan.setCurrency("SAR");
         giftPlan.setPreferredGiftStyle(request.getPreferredGiftStyle());
         giftPlan.setLanguage(request.getLanguage());
         giftPlan.setStatus("CREATED");

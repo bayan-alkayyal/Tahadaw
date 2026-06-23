@@ -313,7 +313,7 @@ public class GiftRecommendationService {
                 {
                   "recommendations": [
                        {
-                         "productName": "string",
+                         "productName": "string" (should be a name for real product),
                          "category": "string",
                          "priceBand": "string (a realistic price RANGE as \"min - max CURRENCY\", e.g. \"350 - 450 SAR\")",
                          "reason": "string",

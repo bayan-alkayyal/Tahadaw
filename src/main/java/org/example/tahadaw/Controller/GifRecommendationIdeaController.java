@@ -23,18 +23,15 @@ public class GifRecommendationIdeaController {
         giftRecommendationService.selectRecommendation(user.getId(), recommendationId);
         return ResponseEntity.status(200).body(new ApiResponse("Recommendation selected successfully."));
     }
-
+    @GetMapping("/get-Recomendation/{giftId}")
+    public ResponseEntity<?> getRecommendation(@AuthenticationPrincipal User user, @PathVariable Long giftId) {
+        return ResponseEntity.status(200).body(giftRecommendationService.generateGiftRecommendation(user.getId(), giftId));
+    }
     @PutMapping("/unselect-Recomendation/{recommendationId}")
     public ResponseEntity<?> unselectRecommendation(@AuthenticationPrincipal User user, @PathVariable Long recommendationId) {
         giftRecommendationService.unselectRecommendation(user.getId(), recommendationId);
         return ResponseEntity.status(200).body(new ApiResponse("Recommendation unselected successfully."));
     }
-
-    @GetMapping("/get-Recomendation/{giftId}")
-    public ResponseEntity<?> getRecommendation(@AuthenticationPrincipal User user, @PathVariable Long giftId) {
-        return ResponseEntity.status(200).body(giftRecommendationService.generateGiftRecommendation(user.getId(), giftId));
-    }
-
     @GetMapping("/regenerate-Recomendation/{giftId}")
     public ResponseEntity<?> regenerateRecommendation(@AuthenticationPrincipal User user, @PathVariable Long giftId) {
         return ResponseEntity.status(200).body(giftRecommendationService.regenerateGiftRecommendation(user.getId(), giftId));

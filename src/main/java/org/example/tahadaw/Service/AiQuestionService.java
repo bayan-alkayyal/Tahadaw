@@ -126,12 +126,21 @@ public class AiQuestionService {
         return aiGeneratedQuestion;
     }
 
-    /**
-     * Throws away the current AI questions (and any answers to them) and asks the AI
-     * for a fresh set. Unlike {@link #generateQuestions} this does not block when
-     * questions already exist; it replaces them and resets the plan back to
-     * AI_QUESTIONS_GENERATED so the user answers the new batch.
-     */
+
+
+
+    public List<AiGeneratedQuestionDTOOut> listQuestions(Long userId, Long giftPlanId) {
+        requireOwnedGiftPlan(userId, giftPlanId);
+
+        List<AiGeneratedQuestion> questions = aiGeneratedQuestionRepository
+                .findByGiftPlan_IdOrderByDisplayOrderAsc(giftPlanId);
+
+        List<AiGeneratedQuestionDTOOut> result = new ArrayList<>();
+        for (AiGeneratedQuestion question : questions) {
+            result.add(toQuestionDto(question));
+        }
+        return result;
+    }
     @Transactional
     public List<AiGeneratedQuestionDTOOut> regenerateQuestions(Long userId, Long giftPlanId) {
         GiftPlan giftPlan = requireOwnedGiftPlan(userId, giftPlanId);
@@ -185,10 +194,7 @@ public class AiQuestionService {
         return regenerated;
     }
 
-    /**
-     * Same context prompt as {@link #buildPrompt}, plus an explicit instruction not to
-     * repeat any of the previously generated questions.
-     */
+
     private String buildRegeneratePrompt(GiftPlan giftPlan, List<String> previousQuestions) {
         String basePrompt = buildPrompt(giftPlan);
 
@@ -204,19 +210,6 @@ public class AiQuestionService {
         exclude.append("Ask different questions this time.\n");
 
         return basePrompt + exclude;
-    }
-
-    public List<AiGeneratedQuestionDTOOut> listQuestions(Long userId, Long giftPlanId) {
-        requireOwnedGiftPlan(userId, giftPlanId);
-
-        List<AiGeneratedQuestion> questions = aiGeneratedQuestionRepository
-                .findByGiftPlan_IdOrderByDisplayOrderAsc(giftPlanId);
-
-        List<AiGeneratedQuestionDTOOut> result = new ArrayList<>();
-        for (AiGeneratedQuestion question : questions) {
-            result.add(toQuestionDto(question));
-        }
-        return result;
     }
 
 

@@ -72,7 +72,6 @@ public class AiQuestionController {
         return ResponseEntity.ok(aiQuestionService.listQuestions(user.getId(), giftPlanId));
     }
 
-    // Regenerate: throws away current AI questions (and their answers) and asks the AI for a fresh set.
     @PostMapping("/ai-questions/regenerate/{giftPlanId}")
     public ResponseEntity<List<AiGeneratedQuestionDTOOut>> regenerateAiQuestions(@AuthenticationPrincipal User user,
                                                                                  @PathVariable Long giftPlanId) {
