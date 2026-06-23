@@ -78,6 +78,7 @@ Main feature areas:
 | Scheduling | Spring `@Scheduled` (reminder jobs) |
 | Boilerplate | Lombok |
 | Build | Maven (`mvnw` wrapper) |
+| Containerization | Docker |
 | Testing | Spring Boot Test, Spring Security Test, JPA Test |
 
 ---
