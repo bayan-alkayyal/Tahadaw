@@ -36,7 +36,7 @@ public class GiftQualityCheckController {
         return ResponseEntity.status(200).body(giftQualityCheckService.getGiftQualityChecksByRecipient(user.getId(), recipientId));
     }
 
-    @GetMapping("/get-one/{checkId}")
+    @GetMapping("/{checkId}")
     public ResponseEntity<?> getGiftQualityCheckById(@PathVariable Long checkId,
                                                      @AuthenticationPrincipal User user) {
 

@@ -11,13 +11,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/search")
+@RequestMapping("/api/v1/search")
 @RequiredArgsConstructor
 public class SearchApiController {
     private final SearchApiService searchApiService;
 
-    @GetMapping("/product/{GiftPlanId}")
-    public ResponseEntity<?> search(@AuthenticationPrincipal User user, @PathVariable Long GiftPlanId) {
-        return ResponseEntity.status(200).body(searchApiService.search(user.getId(), GiftPlanId));
+    @GetMapping("/gift-plans/{giftPlanId}/products")
+    public ResponseEntity<?> search(@AuthenticationPrincipal User user, @PathVariable Long giftPlanId) {
+        return ResponseEntity.status(200).body(searchApiService.search(user.getId(), giftPlanId));
     }
 }

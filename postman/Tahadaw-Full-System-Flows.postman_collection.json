@@ -2,7 +2,7 @@
   "info": {
     "name": "Tahadaw — Full System Flows (Realistic Arabic Data)",
     "_postman_id": "0a4e1c7e-4f3a-4c2b-9b21-2a1d7f6e5c41",
-    "description": "End-to-end tests for every Tahadaw flow, grouped by the responsible developer, plus a final \"Extra - Out-of-Flow Endpoints\" folder for everything else.\n\nSECURITY: the backend uses HTTP Basic auth (no JWT). The signed-in user comes from the Spring Security principal — endpoints no longer take a userId param.\n- Collection auth = Basic {{username}}/{{password}}.\n- Flow 1 registers Saud and stores his credentials, so every later request authenticates as him.\n- Public (no auth): POST /users/register, /api/v1/public/** (group-gift voting), the Moyasar webhook and moyasar-status callback.\n- ADMIN-only: /users/get, required-questions add|update|delete|disable|get, ai-questions CRUD, ai-answers CRUD, required-questions-answer CRUD.\n  Registration only creates USER accounts, so admin requests use Basic {{adminUsername}}/{{adminPassword}} and are tolerant. To exercise them, promote a user to ADMIN in the DB and set those two variables.\n\nDevelopers:\n- Bayan  : Account/Users, Recipients, Admin Required Questions, Quality Check, Reminders, Notifications, Group Gifts.\n- Shahad : Gift Plans, Required Q&A, AI Q&A, Recommendations, Product Search.\n- Saud   : Premium Payment, Gift Messages, Gift Card, Surprise Plan, Gift History.\n\nTest data: owner/sender = Saud (سعود), recipient = Ammar (عمار), email = swwdswwd124@gmail.com, phone = 0502427714. Free text is in Arabic.\n\nRun order is dependency-safe top to bottom. IDs are captured automatically between requests.\n\nManual / external notes:\n- Premium activation needs the Moyasar 3-D Secure step (open transactionUrl logged in flow 4). Until done, Gift Card + Surprise Plan answer 403 (expected).\n- Product Search needs searchapi.api.key; AI flows need openai.api.key; emails need spring.mail.* configured.\n- The \"Account Deletion\" folder is destructive (self-delete) — run it last.",
+    "description": "End-to-end tests for every Tahadaw flow, grouped by the responsible developer, plus a final \"Extra - Out-of-Flow Endpoints\" folder for everything else.\n\nSECURITY: the backend uses HTTP Basic auth (no JWT). The signed-in user comes from the Spring Security principal — endpoints no longer take a userId param.\n- Collection auth = Basic {{username}}/{{password}}.\n- Flow 1 registers Saud and stores his credentials, so every later request authenticates as him.\n- Public (no auth): POST /users/register, /api/v1/public/** (group-gift voting), the Moyasar webhook and moyasar-status callback.\n- ADMIN-only: /users/get, required-questions add|update|delete|disable|get, ai-questions CRUD, ai-answers CRUD, required-question-answers CRUD.\n  Registration only creates USER accounts, so admin requests use Basic {{adminUsername}}/{{adminPassword}} and are tolerant. To exercise them, promote a user to ADMIN in the DB and set those two variables.\n\nDevelopers:\n- Bayan  : Account/Users, Recipients, Admin Required Questions, Quality Check, Reminders, Notifications, Group Gifts.\n- Shahad : Gift Plans, Required Q&A, AI Q&A, Recommendations, Product Search.\n- Saud   : Premium Payment, Gift Messages, Gift Card, Surprise Plan, Gift History.\n\nTest data: owner/sender = Saud (سعود), recipient = Ammar (عمار), email = swwdswwd124@gmail.com, phone = 0502427714. Free text is in Arabic.\n\nRun order is dependency-safe top to bottom. IDs are captured automatically between requests.\n\nManual / external notes:\n- Premium activation needs the Moyasar 3-D Secure step (open transactionUrl logged in flow 4). Until done, Gift Card + Surprise Plan answer 403 (expected).\n- Product Search needs searchapi.api.key; AI flows need openai.api.key; emails need spring.mail.* configured.\n- The \"Account Deletion\" folder is destructive (self-delete) — run it last.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -704,7 +704,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}/api/v1/required-questions/required-questions/{{giftPlanId}}"
+            "url": "{{base_url}}/api/v1/required-questions/gift-plans/{{giftPlanId}}"
           },
           "event": [
             {
@@ -733,7 +733,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{base_url}}/api/v1/required-questions-answer/submit-required-answers/{{giftPlanId}}",
+            "url": "{{base_url}}/api/v1/required-question-answers/gift-plans/{{giftPlanId}}/submit",
             "body": {
               "mode": "raw",
               "raw": "{{requiredAnswersBody}}",
@@ -761,7 +761,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}/api/v1/required-questions-answer/list-required-answers/{{giftPlanId}}"
+            "url": "{{base_url}}/api/v1/required-question-answers/gift-plans/{{giftPlanId}}"
           },
           "event": [
             {
@@ -786,7 +786,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}/api/v1/ai-questions/ai-questions/generate/{{giftPlanId}}"
+            "url": "{{base_url}}/api/v1/ai-questions/generate/{{giftPlanId}}"
           },
           "event": [
             {
@@ -809,7 +809,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}/api/v1/ai-questions/get-ai-questions/{{giftPlanId}}"
+            "url": "{{base_url}}/api/v1/ai-questions/gift-plans/{{giftPlanId}}"
           },
           "event": [
             {
@@ -838,7 +838,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{base_url}}/api/v1/ai-answers/ai-answers/{{giftPlanId}}",
+            "url": "{{base_url}}/api/v1/ai-answers/gift-plans/{{giftPlanId}}",
             "body": {
               "mode": "raw",
               "raw": "{{aiAnswersBody}}",
@@ -866,7 +866,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}/api/v1/ai-answers/ai-answers/{{giftPlanId}}"
+            "url": "{{base_url}}/api/v1/ai-answers/gift-plans/{{giftPlanId}}"
           },
           "event": [
             {
@@ -891,7 +891,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}/api/v1/gif-recommendation/get-Recomendation/{{giftPlanId}}"
+            "url": "{{base_url}}/api/v1/gift-recommendations/gift-plans/{{giftPlanId}}"
           },
           "event": [
             {
@@ -913,7 +913,7 @@
           "request": {
             "method": "PUT",
             "header": [],
-            "url": "{{base_url}}/api/v1/gif-recommendation/select-Recomendation/{{recommendationId}}"
+            "url": "{{base_url}}/api/v1/gift-recommendations/{{recommendationId}}/select"
           },
           "event": [
             {
@@ -932,7 +932,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}/api/v1/gif-recommendation/get-selected-idea/{{giftPlanId}}"
+            "url": "{{base_url}}/api/v1/gift-recommendations/gift-plans/{{giftPlanId}}/selected"
           },
           "event": [
             {
@@ -957,7 +957,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}/search/product/{{giftPlanId}}"
+            "url": "{{base_url}}/api/v1/search/gift-plans/{{giftPlanId}}/products"
           },
           "event": [
             {
@@ -1688,7 +1688,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}/api/v1/gift-quality-checks/get-one/{{qualityCheckId}}"
+            "url": "{{base_url}}/api/v1/gift-quality-checks/{{qualityCheckId}}"
           },
           "event": [
             {
@@ -2703,7 +2703,7 @@
                     "value": "application/json"
                   }
                 ],
-                "url": "{{base_url}}/api/v1/required-questions-answer/required-question/{{anyQuestionId}}",
+                "url": "{{base_url}}/api/v1/required-question-answers/required-question/{{anyQuestionId}}",
                 "auth": {
                   "type": "basic",
                   "basic": [
@@ -2750,7 +2750,7 @@
               "request": {
                 "method": "GET",
                 "header": [],
-                "url": "{{base_url}}/api/v1/required-questions-answer/get",
+                "url": "{{base_url}}/api/v1/required-question-answers/get",
                 "auth": {
                   "type": "basic",
                   "basic": [
@@ -2791,7 +2791,7 @@
               "request": {
                 "method": "GET",
                 "header": [],
-                "url": "{{base_url}}/api/v1/required-questions-answer/get-by-id/{{tmpRqAnswerId}}",
+                "url": "{{base_url}}/api/v1/required-question-answers/get-by-id/{{tmpRqAnswerId}}",
                 "auth": {
                   "type": "basic",
                   "basic": [
@@ -2834,7 +2834,7 @@
                     "value": "application/json"
                   }
                 ],
-                "url": "{{base_url}}/api/v1/required-questions-answer/update/{{tmpRqAnswerId}}",
+                "url": "{{base_url}}/api/v1/required-question-answers/update/{{tmpRqAnswerId}}",
                 "auth": {
                   "type": "basic",
                   "basic": [
@@ -2881,7 +2881,7 @@
               "request": {
                 "method": "DELETE",
                 "header": [],
-                "url": "{{base_url}}/api/v1/required-questions-answer/delete/{{tmpRqAnswerId}}",
+                "url": "{{base_url}}/api/v1/required-question-answers/delete/{{tmpRqAnswerId}}",
                 "auth": {
                   "type": "basic",
                   "basic": [
@@ -3379,7 +3379,7 @@
               "request": {
                 "method": "GET",
                 "header": [],
-                "url": "{{base_url}}/api/v1/gif-recommendation/regenerate-Recomendation/{{giftPlanId}}"
+                "url": "{{base_url}}/api/v1/gift-recommendations/gift-plans/{{giftPlanId}}/regenerate"
               },
               "event": [
                 {
@@ -3402,7 +3402,7 @@
               "request": {
                 "method": "PUT",
                 "header": [],
-                "url": "{{base_url}}/api/v1/gif-recommendation/unselect-Recomendation/{{recommendationId}}"
+                "url": "{{base_url}}/api/v1/gift-recommendations/{{recommendationId}}/unselect"
               },
               "event": [
                 {

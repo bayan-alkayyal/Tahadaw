@@ -12,7 +12,7 @@
  *       * /api/v1/required-questions  add | update | delete | disable | get
  *       * /api/v1/ai-questions        create | get | get-by-id | update | delete
  *       * /api/v1/ai-answers          create | get | get-by-id | update | delete
- *       * /api/v1/required-questions-answer  create | get | get-by-id | update | delete
+ *       * /api/v1/required-question-answers  create | get | get-by-id | update | delete
  *
  * HOW THE COLLECTION AUTHENTICATES:
  *   - Collection-level auth = Basic {{username}} / {{password}}.
@@ -249,7 +249,7 @@ folders.push(folder(
   'Shahad - 6. Required Questions & Answers',
   'Dev: Shahad. Flow 4 — list active required questions for the plan (user endpoint), answer EVERY one dynamically, then submit. Moves the plan to REQUIRED_QUESTIONS_ANSWERED.',
   [
-    req('List Required Questions (build answers)', 'GET', B + '/api/v1/required-questions/required-questions/' + G, {
+    req('List Required Questions (build answers)', 'GET', B + '/api/v1/required-questions/gift-plans/' + G, {
       test: [
         ASSERT_200,
         "var qs = []; try { qs = pm.response.json(); } catch (e) {}",
@@ -259,8 +259,8 @@ folders.push(folder(
         "pm.test('Built answers for all required questions', function () { pm.expect(answers.length).to.be.above(0); });"
       ]
     }),
-    req('Submit Required Answers', 'POST', B + '/api/v1/required-questions-answer/submit-required-answers/' + G, { body: '{{requiredAnswersBody}}' }),
-    req('List Required Answers', 'GET', B + '/api/v1/required-questions-answer/list-required-answers/' + G, {})
+    req('Submit Required Answers', 'POST', B + '/api/v1/required-question-answers/gift-plans/' + G + '/submit', { body: '{{requiredAnswersBody}}' }),
+    req('List Required Answers', 'GET', B + '/api/v1/required-question-answers/gift-plans/' + G, {})
   ]
 ));
 
@@ -269,8 +269,8 @@ folders.push(folder(
   'Shahad - 7. AI Follow-up Questions & Answers',
   'Dev: Shahad. Flow 5 — AI generates follow-up questions (OpenAI) for the signed-in user, we answer EVERY one dynamically. Moves the plan to AI_QUESTIONS_ANSWERED.',
   [
-    req('Generate AI Questions', 'GET', B + '/api/v1/ai-questions/ai-questions/generate/' + G, { test: tolerant('AI questions generated (needs openai key)') }),
-    req('List AI Questions (build answers)', 'GET', B + '/api/v1/ai-questions/get-ai-questions/' + G, {
+    req('Generate AI Questions', 'GET', B + '/api/v1/ai-questions/generate/' + G, { test: tolerant('AI questions generated (needs openai key)') }),
+    req('List AI Questions (build answers)', 'GET', B + '/api/v1/ai-questions/gift-plans/' + G, {
       test: [
         ASSERT_200,
         "var qs = []; try { qs = pm.response.json(); } catch (e) {}",
@@ -280,8 +280,8 @@ folders.push(folder(
         "pm.test('Built answers for all AI questions', function () { pm.expect(answers.length).to.be.above(0); });"
       ]
     }),
-    req('Submit AI Answers', 'POST', B + '/api/v1/ai-answers/ai-answers/' + G, { body: '{{aiAnswersBody}}' }),
-    req('List AI Answers', 'GET', B + '/api/v1/ai-answers/ai-answers/' + G, {})
+    req('Submit AI Answers', 'POST', B + '/api/v1/ai-answers/gift-plans/' + G, { body: '{{aiAnswersBody}}' }),
+    req('List AI Answers', 'GET', B + '/api/v1/ai-answers/gift-plans/' + G, {})
   ]
 ));
 
@@ -290,9 +290,9 @@ folders.push(folder(
   'Shahad - 8. AI Gift Recommendations',
   'Dev: Shahad. Flow 6 — generate AI gift ideas, then select one (required before product search).',
   [
-    req('Generate Recommendations (capture id)', 'GET', B + '/api/v1/gif-recommendation/get-Recomendation/' + G, { test: captureFirstId('recommendationId', 'recommendationId') }),
-    req('Select Recommendation', 'PUT', B + '/api/v1/gif-recommendation/select-Recomendation/{{recommendationId}}', {}),
-    req('Get Selected Idea', 'GET', B + '/api/v1/gif-recommendation/get-selected-idea/' + G, {})
+    req('Generate Recommendations (capture id)', 'GET', B + '/api/v1/gift-recommendations/gift-plans/' + G, { test: captureFirstId('recommendationId', 'recommendationId') }),
+    req('Select Recommendation', 'PUT', B + '/api/v1/gift-recommendations/{{recommendationId}}/select', {}),
+    req('Get Selected Idea', 'GET', B + '/api/v1/gift-recommendations/gift-plans/' + G + '/selected', {})
   ]
 ));
 
@@ -301,7 +301,7 @@ folders.push(folder(
   'Shahad - 9. Product Search & Selection',
   'Dev: Shahad. Flow 7 — search real products (SearchAPI.io) for the selected idea, then save the chosen one. Tolerant: needs searchapi.api.key configured.',
   [
-    req('Search Products (capture productId)', 'GET', B + '/search/product/' + G, {
+    req('Search Products (capture productId)', 'GET', B + '/api/v1/search/gift-plans/' + G + '/products', {
       test: [
         ...tolerant('Product search returned results'),
         "try { var arr = pm.response.json(); if (Array.isArray(arr) && arr.length) { pm.collectionVariables.set('productId', arr[0].id); console.log('productId =', arr[0].id); } } catch (e) {}"
@@ -401,7 +401,7 @@ folders.push(folder(
       body: { giftName: 'ساعة ذكية', giftDescription: 'ساعة ذكية رياضية تدعم تتبع اللياقة والإشعارات', price: 499.0, occasionType: 'GRADUATION' }
     }),
     req('List Checks By Recipient (capture id)', 'GET', B + '/api/v1/gift-quality-checks/recipients/' + R, { test: captureMaxId('qualityCheckId', 'qualityCheckId') }),
-    req('Get Quality Check By Id', 'GET', B + '/api/v1/gift-quality-checks/get-one/{{qualityCheckId}}', {})
+    req('Get Quality Check By Id', 'GET', B + '/api/v1/gift-quality-checks/{{qualityCheckId}}', {})
   ]
 ));
 
@@ -525,11 +525,11 @@ extraSubs.push(folder('Shahad - Required Question Answers (extra CRUD, admin)',
         "try { var arr = pm.response.json(); if (Array.isArray(arr) && arr.length) { pm.collectionVariables.set('anyQuestionId', arr[0].id); } } catch (e) {}"
       ]
     }),
-    req('Create RQ Answer', 'POST', B + '/api/v1/required-questions-answer/required-question/{{anyQuestionId}}', { auth: 'admin', body: { answerText: 'إجابة تجريبية على السؤال المطلوب.' }, test: tolerant('RQ answer created (admin)') }),
-    req('Get All RQ Answers & Capture', 'GET', B + '/api/v1/required-questions-answer/get', { auth: 'admin', test: captureMaxId('tmpRqAnswerId', 'tmpRqAnswerId') }),
-    req('Get RQ Answer By Id', 'GET', B + '/api/v1/required-questions-answer/get-by-id/{{tmpRqAnswerId}}', { auth: 'admin', test: tolerant('RQ answer fetched (admin)') }),
-    req('Update RQ Answer', 'PUT', B + '/api/v1/required-questions-answer/update/{{tmpRqAnswerId}}', { auth: 'admin', body: { answerText: 'إجابة محدّثة على السؤال المطلوب.' }, test: tolerant('RQ answer updated (admin)') }),
-    req('Delete RQ Answer', 'DELETE', B + '/api/v1/required-questions-answer/delete/{{tmpRqAnswerId}}', { auth: 'admin', test: tolerant('RQ answer deleted (admin)') })
+    req('Create RQ Answer', 'POST', B + '/api/v1/required-question-answers/required-question/{{anyQuestionId}}', { auth: 'admin', body: { answerText: 'إجابة تجريبية على السؤال المطلوب.' }, test: tolerant('RQ answer created (admin)') }),
+    req('Get All RQ Answers & Capture', 'GET', B + '/api/v1/required-question-answers/get', { auth: 'admin', test: captureMaxId('tmpRqAnswerId', 'tmpRqAnswerId') }),
+    req('Get RQ Answer By Id', 'GET', B + '/api/v1/required-question-answers/get-by-id/{{tmpRqAnswerId}}', { auth: 'admin', test: tolerant('RQ answer fetched (admin)') }),
+    req('Update RQ Answer', 'PUT', B + '/api/v1/required-question-answers/update/{{tmpRqAnswerId}}', { auth: 'admin', body: { answerText: 'إجابة محدّثة على السؤال المطلوب.' }, test: tolerant('RQ answer updated (admin)') }),
+    req('Delete RQ Answer', 'DELETE', B + '/api/v1/required-question-answers/delete/{{tmpRqAnswerId}}', { auth: 'admin', test: tolerant('RQ answer deleted (admin)') })
   ]
 ));
 
@@ -558,8 +558,8 @@ extraSubs.push(folder('Shahad - AI Answers (extra CRUD, admin)',
 extraSubs.push(folder('Shahad - Recommendations (extra)',
   'Regenerate ideas + unselect. Tolerant: regenerate errors once an idea is already selected (as in flow 8).',
   [
-    req('Regenerate Recommendations', 'GET', B + '/api/v1/gif-recommendation/regenerate-Recomendation/' + G, { test: tolerant('Recommendations regenerated') }),
-    req('Unselect Recommendation', 'PUT', B + '/api/v1/gif-recommendation/unselect-Recomendation/{{recommendationId}}', { test: tolerant('Recommendation unselected') })
+    req('Regenerate Recommendations', 'GET', B + '/api/v1/gift-recommendations/gift-plans/' + G + '/regenerate', { test: tolerant('Recommendations regenerated') }),
+    req('Unselect Recommendation', 'PUT', B + '/api/v1/gift-recommendations/{{recommendationId}}/unselect', { test: tolerant('Recommendation unselected') })
   ]
 ));
 
@@ -662,7 +662,7 @@ const collection = {
       '- Collection auth = Basic {{username}}/{{password}}.',
       '- Flow 1 registers Saud and stores his credentials, so every later request authenticates as him.',
       '- Public (no auth): POST /users/register, /api/v1/public/** (group-gift voting), the Moyasar webhook and moyasar-status callback.',
-      '- ADMIN-only: /users/get, required-questions add|update|delete|disable|get, ai-questions CRUD, ai-answers CRUD, required-questions-answer CRUD.',
+      '- ADMIN-only: /users/get, required-questions add|update|delete|disable|get, ai-questions CRUD, ai-answers CRUD, required-question-answers CRUD.',
       '  Registration only creates USER accounts, so admin requests use Basic {{adminUsername}}/{{adminPassword}} and are tolerant. To exercise them, promote a user to ADMIN in the DB and set those two variables.',
       '',
       'Developers:',

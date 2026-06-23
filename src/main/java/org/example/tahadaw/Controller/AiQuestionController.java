@@ -59,20 +59,20 @@ public class AiQuestionController {
     }
 
     // Shahad
-    @GetMapping("/ai-questions/generate/{giftPlanId}")
+    @GetMapping("/generate/{giftPlanId}")
     public ResponseEntity<?> generateAiQuestions(@AuthenticationPrincipal User user,
                                                        @PathVariable Long giftPlanId) {
         return ResponseEntity.status(200).body(aiQuestionService.generateQuestions(user.getId(), giftPlanId));
     }
 
     // Shahad
-    @GetMapping("/get-ai-questions/{giftPlanId}")
+    @GetMapping("/gift-plans/{giftPlanId}")
     public ResponseEntity<List<AiGeneratedQuestionDTOOut>> listAiQuestions(@AuthenticationPrincipal User user,
                                                                                  @PathVariable Long giftPlanId) {
         return ResponseEntity.ok(aiQuestionService.listQuestions(user.getId(), giftPlanId));
     }
 
-    @PostMapping("/ai-questions/regenerate/{giftPlanId}")
+    @GetMapping("/regenerate/{giftPlanId}")
     public ResponseEntity<List<AiGeneratedQuestionDTOOut>> regenerateAiQuestions(@AuthenticationPrincipal User user,
                                                                                  @PathVariable Long giftPlanId) {
         return ResponseEntity.ok(aiQuestionService.regenerateQuestions(user.getId(), giftPlanId));

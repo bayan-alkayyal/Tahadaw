@@ -52,7 +52,7 @@ public class RequiredQuestionController {
         return ResponseEntity.status(200).body(new ApiResponse("Required question disabled successfully"));
     }
 
-    @GetMapping("/required-questions/{giftPlanId}")
+    @GetMapping("/gift-plans/{giftPlanId}")
     public ResponseEntity<List<RequiredQuestionDTOOut>> listRequiredQuestions(@AuthenticationPrincipal User user,
                                                                               @PathVariable Long giftPlanId) {
         return ResponseEntity.ok(requiredQuestionService.listActiveForGiftPlan(user.getId(), giftPlanId));

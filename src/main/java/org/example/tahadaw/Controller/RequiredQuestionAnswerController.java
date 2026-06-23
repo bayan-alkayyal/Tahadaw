@@ -16,7 +16,7 @@ import java.util.List;
 
 
 @RestController
-@RequestMapping("/api/v1/required-questions-answer")
+@RequestMapping("/api/v1/required-question-answers")
 @RequiredArgsConstructor
 public class RequiredQuestionAnswerController {
 
@@ -57,7 +57,7 @@ public class RequiredQuestionAnswerController {
         return ResponseEntity.status(200).body(new ApiResponse("Required question answer deleted successfully."));
     }
 
-    @PostMapping("/submit-required-answers/{giftPlanId}")
+    @PostMapping("/gift-plans/{giftPlanId}/submit")
     public ResponseEntity<?> submitRequiredAnswers(
             @AuthenticationPrincipal User user,
             @PathVariable Long giftPlanId,
@@ -66,7 +66,7 @@ public class RequiredQuestionAnswerController {
         return ResponseEntity.status(200).body(new ApiResponse("Answers for required question submitted successfully"));
     }
 
-    @GetMapping("/list-required-answers/{giftPlanId}")
+    @GetMapping("/gift-plans/{giftPlanId}")
     public ResponseEntity<List<RequiredQuestionAnswerDTOOut>> listRequiredAnswers(@AuthenticationPrincipal User user,
                                                                                   @PathVariable Long giftPlanId) {
         return ResponseEntity.status(200).body(requiredQuestionAnswerService.listByGiftPlan(user.getId(), giftPlanId));

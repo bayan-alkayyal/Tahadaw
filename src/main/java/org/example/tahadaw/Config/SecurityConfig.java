@@ -59,10 +59,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/v1/ai-answers/update/**").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/ai-answers/delete/**").hasAuthority("ADMIN")
                         // required question-answer CRUD
-                        .requestMatchers(HttpMethod.POST, "/api/v1/required-questions-answer/required-question/**").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/required-questions-answer/get", "/api/v1/required-questions-answer/get-by-id/**").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/required-questions-answer/update/**").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/v1/required-questions-answer/delete/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/required-question-answers/required-question/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/required-question-answers/get", "/api/v1/required-question-answers/get-by-id/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/required-question-answers/update/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/required-question-answers/delete/**").hasAuthority("ADMIN")
 
                         // ---------- Everything else needs a logged-in user ----------
                         .anyRequest().hasAuthority("USER")

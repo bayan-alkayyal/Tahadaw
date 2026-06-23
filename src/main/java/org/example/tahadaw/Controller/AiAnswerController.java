@@ -57,7 +57,7 @@ public class AiAnswerController {
     }
 
     // Shahad
-    @PostMapping("/ai-answers/{giftPlanId}")
+    @PostMapping("/gift-plans/{giftPlanId}")
     public ResponseEntity<List<AiQuestionAnswerDTOOut>> submitAiAnswersByPath(
             @AuthenticationPrincipal User user,
             @PathVariable Long giftPlanId,
@@ -66,7 +66,7 @@ public class AiAnswerController {
     }
 
     // Shahad style
-    @GetMapping("/ai-answers/{giftPlanId}")
+    @GetMapping("/gift-plans/{giftPlanId}")
     public ResponseEntity<List<AiQuestionAnswerDTOOut>> listAiAnswers(@AuthenticationPrincipal User user,
                                                                             @PathVariable Long giftPlanId) {
         return ResponseEntity.status(200).body(aiAnswerService.listAnswers(user.getId(), giftPlanId));

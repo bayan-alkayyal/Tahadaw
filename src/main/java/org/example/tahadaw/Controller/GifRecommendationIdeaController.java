@@ -10,7 +10,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/gif-recommendation")
+@RequestMapping("/api/v1/gift-recommendations")
 @RequiredArgsConstructor
 public class GifRecommendationIdeaController {
 
@@ -18,28 +18,31 @@ public class GifRecommendationIdeaController {
 
     // ===== Gift idea recommendations (Shahad) =====
 
-    @PutMapping("/select-Recomendation/{recommendationId}")
+    @PutMapping("/{recommendationId}/select")
     public ResponseEntity<?> selectRecommendation(@AuthenticationPrincipal User user, @PathVariable Long recommendationId) {
         giftRecommendationService.selectRecommendation(user.getId(), recommendationId);
         return ResponseEntity.status(200).body(new ApiResponse("Recommendation selected successfully."));
     }
-    @GetMapping("/get-Recomendation/{giftId}")
-    public ResponseEntity<?> getRecommendation(@AuthenticationPrincipal User user, @PathVariable Long giftId) {
-        return ResponseEntity.status(200).body(giftRecommendationService.generateGiftRecommendation(user.getId(), giftId));
+
+    @GetMapping("/gift-plans/{giftPlanId}")
+    public ResponseEntity<?> getRecommendation(@AuthenticationPrincipal User user, @PathVariable Long giftPlanId) {
+        return ResponseEntity.status(200).body(giftRecommendationService.generateGiftRecommendation(user.getId(), giftPlanId));
     }
-    @PutMapping("/unselect-Recomendation/{recommendationId}")
+
+    @PutMapping("/{recommendationId}/unselect")
     public ResponseEntity<?> unselectRecommendation(@AuthenticationPrincipal User user, @PathVariable Long recommendationId) {
         giftRecommendationService.unselectRecommendation(user.getId(), recommendationId);
         return ResponseEntity.status(200).body(new ApiResponse("Recommendation unselected successfully."));
     }
-    @GetMapping("/regenerate-Recomendation/{giftId}")
-    public ResponseEntity<?> regenerateRecommendation(@AuthenticationPrincipal User user, @PathVariable Long giftId) {
-        return ResponseEntity.status(200).body(giftRecommendationService.regenerateGiftRecommendation(user.getId(), giftId));
+
+    @GetMapping("/gift-plans/{giftPlanId}/regenerate")
+    public ResponseEntity<?> regenerateRecommendation(@AuthenticationPrincipal User user, @PathVariable Long giftPlanId) {
+        return ResponseEntity.status(200).body(giftRecommendationService.regenerateGiftRecommendation(user.getId(), giftPlanId));
     }
 
-    @GetMapping("/get-selected-idea/{giftplanId}")
-    public ResponseEntity<?> getSelectedIdea(@AuthenticationPrincipal User user, @PathVariable Long giftplanId){
-        return ResponseEntity.status(200).body(giftRecommendationService.getSelectedRecommendation(user.getId(), giftplanId));
+    @GetMapping("/gift-plans/{giftPlanId}/selected")
+    public ResponseEntity<?> getSelectedIdea(@AuthenticationPrincipal User user, @PathVariable Long giftPlanId) {
+        return ResponseEntity.status(200).body(giftRecommendationService.getSelectedRecommendation(user.getId(), giftPlanId));
     }
 
 
