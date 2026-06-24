@@ -3,12 +3,15 @@ package org.example.tahadaw.Controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.Api.ApiResponse;
+import org.example.tahadaw.DTO.OUT.ReminderDTOOut;
 import org.example.tahadaw.Model.Reminder;
 import org.example.tahadaw.Model.User;
 import org.example.tahadaw.Service.ReminderService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/reminders")
@@ -27,8 +30,8 @@ public class ReminderController {
     }
 
     @GetMapping("/get")
-    public ResponseEntity<?> getReminders(@AuthenticationPrincipal User user) {
-        return ResponseEntity.status(200).body(reminderService.getReminders(user.getId()));
+    public ResponseEntity<List<ReminderDTOOut>> getReminders(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(reminderService.getReminders(user.getId()));
     }
 
     @PutMapping("/update/{reminderId}")
@@ -48,7 +51,7 @@ public class ReminderController {
 
 
     @GetMapping("/get-my")
-    public ResponseEntity<?> getMyReminders(@AuthenticationPrincipal User user){
-        return ResponseEntity.status(200).body(reminderService.getMyReminders(user.getId()));
+    public ResponseEntity<List<ReminderDTOOut>> getMyReminders(@AuthenticationPrincipal User user){
+        return ResponseEntity.ok(reminderService.getMyReminders(user.getId()));
     }
 }

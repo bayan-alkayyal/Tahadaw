@@ -5,6 +5,7 @@ import org.example.tahadaw.Api.ApiException;
 import org.example.tahadaw.DTO.IN.MoyasarCardPaymentDTOIn;
 import org.example.tahadaw.DTO.IN.MoyasarWebhookDTOIn;
 import org.example.tahadaw.DTO.OUT.PaymentDTOOut;
+import org.example.tahadaw.Mapper.ResponseMapper;
 import org.example.tahadaw.Model.Payment;
 import org.example.tahadaw.Model.User;
 import org.example.tahadaw.Repository.PaymentRepository;
@@ -74,7 +75,7 @@ public class PaymentService {
                 request.getCallbackUrl()
         );
 
-        return syncFromMoyasarResponse(payment, moyasarResponse, user);
+        return syncFromMoyasarResponse(payment, moyasarResponse, user, true);
     }
 
     @Transactional
@@ -83,7 +84,7 @@ public class PaymentService {
                 .orElseThrow(() -> new ApiException("Payment not found for Moyasar id: " + webhook.getId()));
 
         JsonNode moyasarResponse = moyasarService.fetchPayment(webhook.getId());
-        return syncFromMoyasarResponse(payment, moyasarResponse, payment.getUser());
+        return syncFromMoyasarResponse(payment, moyasarResponse, payment.getUser(), true);
     }
 
     @Transactional
@@ -92,7 +93,7 @@ public class PaymentService {
                 .orElseThrow(() -> new ApiException("Payment not found for Moyasar id: " + moyasarPaymentId));
 
         JsonNode moyasarResponse = moyasarService.fetchPayment(moyasarPaymentId);
-        return syncFromMoyasarResponse(payment, moyasarResponse, payment.getUser());
+        return syncFromMoyasarResponse(payment, moyasarResponse, payment.getUser(), true);
     }
 
     public List<PaymentDTOOut> getMyPayments(Long userId) {
@@ -100,11 +101,12 @@ public class PaymentService {
                 .orElseThrow(() -> new ApiException("User not found."));
 
         return paymentRepository.findByUserOrderByCreatedAtDesc(user).stream()
-                .map(payment -> toDto(payment, null, null))
+                .map(payment -> ResponseMapper.toPaymentDto(payment, null, null))
                 .toList();
     }
 
-    private PaymentDTOOut syncFromMoyasarResponse(Payment payment, JsonNode moyasarResponse, User user) {
+    private PaymentDTOOut syncFromMoyasarResponse(
+            Payment payment, JsonNode moyasarResponse, User user, boolean activatePremiumIfPaid) {
         String moyasarPaymentId = MoyasarService.readPaymentId(moyasarResponse);
         String moyasarStatus = MoyasarService.readStatus(moyasarResponse);
         String transactionUrl = MoyasarService.readTransactionUrl(moyasarResponse);
@@ -114,11 +116,15 @@ public class PaymentService {
         }
 
         if ("paid".equalsIgnoreCase(moyasarStatus)) {
-            premiumService.activatePremium(user, payment);
-            try {
-                emailService.sendPaymentReceiptEmail(user, payment);
-            } catch (ApiException ignored) {
-                // Email is optional during local development.
+            if (activatePremiumIfPaid) {
+                premiumService.activatePremium(user, payment);
+                try {
+                    emailService.sendPaymentReceiptEmail(user, payment);
+                } catch (ApiException ignored) {
+                    // Email is optional during local development.
+                }
+            } else {
+                payment.setStatus("PAID");
             }
         } else if ("failed".equalsIgnoreCase(moyasarStatus)) {
             payment.setStatus("FAILED");
@@ -127,20 +133,6 @@ public class PaymentService {
         }
 
         paymentRepository.save(payment);
-        return toDto(payment, moyasarStatus, transactionUrl);
-    }
-
-    private PaymentDTOOut toDto(Payment payment, String moyasarStatus, String transactionUrl) {
-        return new PaymentDTOOut(
-                payment.getId(),
-                payment.getAmountMinor(),
-                payment.getCurrency(),
-                payment.getStatus(),
-                payment.getProvider(),
-                payment.getTransactionId(),
-                moyasarStatus,
-                transactionUrl,
-                payment.getCreatedAt()
-        );
+        return ResponseMapper.toPaymentDto(payment, moyasarStatus, transactionUrl);
     }
 }

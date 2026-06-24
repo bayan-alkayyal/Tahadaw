@@ -14,8 +14,6 @@ public class GroupGiftUpdateDTOIn {
 
     private String title;
     private String description;
-    private String responsiblePersonName;
-    private String responsiblePersonEmail;
     private LocalDate giftGivingDate;
     private LocalDateTime votingDeadline;
 }

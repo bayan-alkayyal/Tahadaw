@@ -246,11 +246,9 @@ public class GiftMessageService {
     private GiftMessageDTOOut toDto(GiftMessage giftMessage) {
         return new GiftMessageDTOOut(
                 giftMessage.getId(),
-                giftMessage.getUser().getId(),
                 giftMessage.getTone(),
                 giftMessage.getLanguage(),
-                giftMessage.getMessageText(),
-                giftMessage.getCreatedAt()
+                giftMessage.getMessageText()
         );
     }
 }

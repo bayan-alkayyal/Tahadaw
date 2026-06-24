@@ -32,7 +32,7 @@ public class NotificationService {
         notification.setTitle(request.getTitle());
         notification.setMessage(request.getMessage());
         notification.setType(request.getType());
-        notification.setStatus(request.getStatus() != null ? request.getStatus() : "UNREAD");
+        notification.setStatus("UNREAD");
         notification.setCreatedAt(LocalDateTime.now());
 
         return toDto(notificationRepository.save(notification));
@@ -64,9 +64,6 @@ public class NotificationService {
         if (request.getType() != null) {
             notification.setType(request.getType());
         }
-        if (request.getStatus() != null) {
-            notification.setStatus(request.getStatus());
-        }
 
         return toDto(notificationRepository.save(notification));
     }
@@ -75,6 +72,13 @@ public class NotificationService {
     public void delete(Long userId, Long notificationId) {
         Notification notification = requireOwnedNotification(userId, notificationId);
         notificationRepository.delete(notification);
+    }
+
+    @Transactional
+    public NotificationDTOOut markRead(Long userId, Long notificationId) {
+        Notification notification = requireOwnedNotification(userId, notificationId);
+        notification.setStatus("READ");
+        return toDto(notificationRepository.save(notification));
     }
 
     private Notification requireOwnedNotification(Long userId, Long notificationId) {
@@ -87,14 +91,11 @@ public class NotificationService {
     }
 
     private NotificationDTOOut toDto(Notification notification) {
-        return new NotificationDTOOut(
-                notification.getId(),
-                notification.getUser().getId(),
-                notification.getTitle(),
-                notification.getMessage(),
-                notification.getType(),
-                notification.getStatus(),
-                notification.getCreatedAt()
-        );
+        NotificationDTOOut dto = new NotificationDTOOut();
+        dto.setId(notification.getId());
+        dto.setTitle(notification.getTitle());
+        dto.setMessage(notification.getMessage());
+        dto.setType(notification.getType());
+        return dto;
     }
 }

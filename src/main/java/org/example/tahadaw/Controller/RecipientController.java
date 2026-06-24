@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.Api.ApiResponse;
 import org.example.tahadaw.DTO.OUT.GiftHistoryDTOOut;
 import org.example.tahadaw.DTO.OUT.RecipientInsightsDTOOut;
+import org.example.tahadaw.DTO.OUT.RecipientDTOOut;
 import org.example.tahadaw.Model.Recipient;
 import org.example.tahadaw.Model.User;
 import org.example.tahadaw.Service.GiftHistoryService;
@@ -30,8 +31,8 @@ public class RecipientController {
     }
 
     @GetMapping("/get")
-    public ResponseEntity<?> getRecipients(@AuthenticationPrincipal User user) {
-        return ResponseEntity.status(200).body(recipientService.getRecipientsByUserId(user.getId()));
+    public ResponseEntity<List<RecipientDTOOut>> getRecipients(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(recipientService.getRecipientsByUserId(user.getId()));
     }
 
     @PutMapping("/update/{recipientId}")
@@ -59,14 +60,14 @@ public class RecipientController {
     }
 
     @GetMapping("/get-by-user-id")
-    public ResponseEntity<?> getRecipientsByUserId(@AuthenticationPrincipal User user){
-        return ResponseEntity.status(200).body(recipientService.getRecipientsByUserId(user.getId()));
+    public ResponseEntity<List<RecipientDTOOut>> getRecipientsByUserId(@AuthenticationPrincipal User user){
+        return ResponseEntity.ok(recipientService.getRecipientsByUserId(user.getId()));
     }
 
     @GetMapping("/get/{recipientId}")
-    public ResponseEntity<?> getRecipientByIdAndUserId(@AuthenticationPrincipal User user,
+    public ResponseEntity<RecipientDTOOut> getRecipientByIdAndUserId(@AuthenticationPrincipal User user,
                                                        @PathVariable Long recipientId) {
 
-        return ResponseEntity.status(200).body(recipientService.getRecipientByIdAndUserId(user.getId(), recipientId));
+        return ResponseEntity.ok(recipientService.getRecipientByIdAndUserId(user.getId(), recipientId));
     }
 }

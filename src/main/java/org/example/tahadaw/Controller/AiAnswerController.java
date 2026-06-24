@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.Api.ApiResponse;
 import org.example.tahadaw.DTO.IN.AiQuestionAnswerDTOIn;
 import org.example.tahadaw.DTO.IN.AiQuestionAnswersSubmitDTOIn;
+import org.example.tahadaw.DTO.OUT.AiQuestionAnswerDetailDTOOut;
 import org.example.tahadaw.DTO.OUT.AiQuestionAnswerDTOOut;
 import org.example.tahadaw.Model.User;
 import org.example.tahadaw.Service.AiAnswerService;
@@ -31,14 +32,14 @@ public class AiAnswerController {
 
     // READ - all
     @GetMapping("/get")
-    public ResponseEntity<?> getAllAiAnswers() {
-        return ResponseEntity.status(200).body(aiAnswerService.getAllAiAnswer());
+    public ResponseEntity<List<AiQuestionAnswerDetailDTOOut>> getAllAiAnswers() {
+        return ResponseEntity.ok(aiAnswerService.getAllAiAnswer());
     }
 
     // READ - by id
     @GetMapping("/get-by-id/{id}")
-    public ResponseEntity<?> getAiAnswerById(@PathVariable Long id) {
-        return ResponseEntity.status(200).body(aiAnswerService.getAiQuestionAnswerById(id));
+    public ResponseEntity<AiQuestionAnswerDetailDTOOut> getAiAnswerById(@PathVariable Long id) {
+        return ResponseEntity.ok(aiAnswerService.getAiQuestionAnswerById(id));
     }
 
     // UPDATE

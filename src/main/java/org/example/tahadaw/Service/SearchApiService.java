@@ -2,40 +2,37 @@ package org.example.tahadaw.Service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.Api.ApiException;
-import org.example.tahadaw.Config.ModelMapperConfig;
+import org.example.tahadaw.DTO.OUT.ProductSearchResultDTOOut;
+import org.example.tahadaw.Mapper.ResponseMapper;
 import org.example.tahadaw.DTO.GoogleShoppingResponse;
 import org.example.tahadaw.DTO.ShoppingResult;
 import org.example.tahadaw.Model.GiftIdeaRecommendation;
 import org.example.tahadaw.Model.GiftPlan;
+import org.example.tahadaw.Model.GiftPlanStatus;
 import org.example.tahadaw.Model.SelectedProduct;
 import org.example.tahadaw.Repository.GiftIdeaRecommendationRepository;
 import org.example.tahadaw.Repository.GiftPlanRepository;
 import org.example.tahadaw.Repository.SelectedProductRepository;
-import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class SearchApiService {
 
     private final WebClient webClient;
-    private  final ModelMapper modelMapper;
     private final GiftPlanRepository giftPlanRepository;
     private final GiftIdeaRecommendationRepository giftIdeaRecommendationRepository;
     private final SelectedProductRepository selectedProductRepository;
 
-
-
-
-    public List<SelectedProduct> search(Long userId, Long giftPlanId) {
+    @Transactional
+    public List<ProductSearchResultDTOOut> search(Long userId, Long giftPlanId) {
         GiftPlan giftPlan = giftPlanRepository.findGiftPlanById(giftPlanId)
                 .orElseThrow(() -> new ApiException("Gift plan not found."));
         if (!giftPlan.getUser().getId().equals(userId)) {
@@ -44,21 +41,27 @@ public class SearchApiService {
 
         GiftIdeaRecommendation selectedIdea = giftIdeaRecommendationRepository
                 .findByGiftPlanAndIsSelectedTrue(giftPlan)
-                .orElseThrow(() -> new ApiException("Select one AI gift idea before selecting a product."));
+                .orElseThrow(() -> new ApiException("Select one AI gift idea before searching for products."));
 
-        if (selectedIdea == null) {
-            throw new ApiException("you havent select product yet");
+        if (!GiftPlanStatus.GIFT_IDEA_SELECTED.equals(giftPlan.getStatus())
+                && giftPlan.getSelectedGiftIdea() == null) {
+            throw new ApiException("Select one AI gift idea before searching for products.");
         }
-        //if he select product take product name and search it in google shopping api
+
+        if (giftPlan.getSelectedProduct() != null) {
+            throw new ApiException("A product is already selected for this gift plan.");
+        }
+
+        selectedProductRepository.deleteSelectedProductsByGiftIdeaRecommendation(selectedIdea);
+
         String productName = selectedIdea.getProductName();
-        GoogleShoppingResponse response= webClient.get()
+        GoogleShoppingResponse response = webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/search")
                         .queryParam("engine", "google_shopping")
                         .queryParam("q", productName)
                         .queryParam("gl", "sa")
                         .queryParam("hl", "ar")
-//                        .queryParam("price_max",giftPlan.getBudgetMinor())
                         .build())
                 .retrieve()
                 .onStatus(HttpStatusCode::is4xxClientError, resp ->
@@ -69,33 +72,29 @@ public class SearchApiService {
                 .bodyToMono(GoogleShoppingResponse.class)
                 .block();
 
-        if (response == null || response.getShoppingResults() == null) {
+        if (response == null || response.getShoppingResults() == null || response.getShoppingResults().isEmpty()) {
             throw new ApiException("No results found for " + productName);
         }
 
         List<ShoppingResult> dtos = response.getShoppingResults().stream()
                 .limit(Math.min(5, response.getShoppingResults().size()))
                 .toList();
-        List<SelectedProduct> selectedProduct = new ArrayList<>();
-
+        List<ProductSearchResultDTOOut> results = new ArrayList<>();
 
         for (ShoppingResult dto : dtos) {
-            SelectedProduct selectedProduct1=toDto(dto);
-            selectedProduct.add(selectedProduct1);
-            selectedProduct1.setGiftIdeaRecommendation(selectedIdea);
-           selectedProductRepository.save(selectedProduct1);
+            SelectedProduct selectedProduct = toEntity(dto);
+            selectedProduct.setGiftIdeaRecommendation(selectedIdea);
+            SelectedProduct saved = selectedProductRepository.save(selectedProduct);
+            results.add(ResponseMapper.toProductSearchResultDto(saved));
         }
 
-
-        return selectedProduct;
-
+        return results;
     }
 
-
-    private SelectedProduct toDto(ShoppingResult r) {
+    private SelectedProduct toEntity(ShoppingResult r) {
         SelectedProduct selected = new SelectedProduct();
         selected.setProductName(r.getTitle());
-        selected.setPrice(r.getExtractedPrice() == null ? null : r.getExtractedPrice() );
+        selected.setPrice(r.getExtractedPrice() == null ? null : r.getExtractedPrice());
         selected.setCurrency("SAR");
         selected.setImageUrl(r.getThumbnail());
         selected.setProductUrl(r.getProductLink());

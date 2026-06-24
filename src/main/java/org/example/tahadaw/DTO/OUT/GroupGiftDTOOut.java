@@ -1,25 +1,23 @@
 package org.example.tahadaw.DTO.OUT;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Data
-@AllArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
 public class GroupGiftDTOOut {
 
     private Long id;
-    private Long ownerId;
     private Long recipientId;
     private String title;
     private String description;
-    private String responsiblePersonName;
-    private String responsiblePersonEmail;
     private LocalDate giftGivingDate;
     private LocalDateTime votingDeadline;
+    private Boolean votingOpen;
     private Long winningOptionId;
-    private String status;
-    private LocalDateTime createdAt;
 }

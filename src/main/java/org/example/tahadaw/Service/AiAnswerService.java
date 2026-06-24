@@ -6,10 +6,13 @@ import org.example.tahadaw.Api.ApiException;
 import org.example.tahadaw.DTO.IN.AiQuestionAnswerDTOIn;
 import org.example.tahadaw.DTO.IN.AiQuestionAnswerItemDTOIn;
 import org.example.tahadaw.DTO.IN.AiQuestionAnswersSubmitDTOIn;
+import org.example.tahadaw.DTO.OUT.AiQuestionAnswerDetailDTOOut;
 import org.example.tahadaw.DTO.OUT.AiQuestionAnswerDTOOut;
+import org.example.tahadaw.Mapper.ResponseMapper;
 import org.example.tahadaw.Model.AiGeneratedQuestion;
 import org.example.tahadaw.Model.AiQuestionAnswer;
 import org.example.tahadaw.Model.GiftPlan;
+import org.example.tahadaw.Model.GiftPlanStatus;
 import org.example.tahadaw.Repository.AiGeneratedQuestionRepository;
 import org.example.tahadaw.Repository.AiQuestionAnswerRepository;
 import org.example.tahadaw.Repository.GiftPlanRepository;
@@ -51,24 +54,30 @@ public class AiAnswerService {
         aiQuestionAnswerRepository.save(aiQuestionAnswer);
     }
 
-    public List<AiQuestionAnswer> getAllAiAnswer() {
-        return aiQuestionAnswerRepository.findAll();
+    public List<AiQuestionAnswerDetailDTOOut> getAllAiAnswer() {
+        return aiQuestionAnswerRepository.findAll().stream()
+                .map(ResponseMapper::toAiQuestionAnswerDetailDto)
+                .toList();
     }
 
     public void updateAiQuestionAnswer(long id, AiQuestionAnswerDTOIn request) {
-        AiQuestionAnswer oldAiQuestionAnswer = getAiQuestionAnswerById(id);
+        AiQuestionAnswer oldAiQuestionAnswer = getAiQuestionAnswerEntityById(id);
         oldAiQuestionAnswer.setAnswerText(request.getAnswerText());
         aiQuestionAnswerRepository.save(oldAiQuestionAnswer);
 
     }
 
     public void deleteAiQuestionAnswer(Long id) {
-        AiQuestionAnswer aiQuestionAnswer = getAiQuestionAnswerById(id);
+        AiQuestionAnswer aiQuestionAnswer = getAiQuestionAnswerEntityById(id);
         aiQuestionAnswerRepository.delete(aiQuestionAnswer);
     }
 
 
-    public AiQuestionAnswer getAiQuestionAnswerById(Long id) {
+    public AiQuestionAnswerDetailDTOOut getAiQuestionAnswerById(Long id) {
+        return ResponseMapper.toAiQuestionAnswerDetailDto(getAiQuestionAnswerEntityById(id));
+    }
+
+    private AiQuestionAnswer getAiQuestionAnswerEntityById(Long id) {
         AiQuestionAnswer aiQuestionAnswer = aiQuestionAnswerRepository.findAiQuestionAnswerById(id).orElse(null);
         if (aiQuestionAnswer == null) {
             throw new ApiException("Ai Answer not found");
@@ -81,9 +90,13 @@ public class AiAnswerService {
                                                       AiQuestionAnswersSubmitDTOIn request) {
         GiftPlan giftPlan = requireOwnedGiftPlan(userId, giftPlanId);
 
-        // if (!"AI_QUESTIONS_GENERATED".equals(giftPlan.getStatus())) {
-        //     throw new ApiException("Generate AI follow-up questions before submitting answers.");
-        // }
+        if (!GiftPlanStatus.AI_QUESTIONS_GENERATED.equals(giftPlan.getStatus())
+                && !GiftPlanStatus.AI_QUESTIONS_ANSWERED.equals(giftPlan.getStatus())) {
+            throw new ApiException("Generate AI follow-up questions before submitting answers.");
+        }
+        if (GiftPlanStatus.isAtOrAfterRecommendations(giftPlan.getStatus())) {
+            throw new ApiException("Gift recommendations already generated; AI answers cannot be changed.");
+        }
 
         List<AiGeneratedQuestion> planQuestions =
                 aiGeneratedQuestionRepository.findByGiftPlan_IdOrderByDisplayOrderAsc(giftPlanId);
@@ -128,7 +141,7 @@ public class AiAnswerService {
             aiQuestionAnswerRepository.save(answer);
         }
 
-        giftPlan.setStatus("AI_QUESTIONS_ANSWERED");
+        giftPlan.setStatus(GiftPlanStatus.AI_QUESTIONS_ANSWERED);
         giftPlan.setUpdatedAt(now);
         giftPlanRepository.save(giftPlan);
 
@@ -161,13 +174,11 @@ public class AiAnswerService {
     }
 
     private AiQuestionAnswerDTOOut toAnswerDto(AiQuestionAnswer answer) {
-        AiQuestionAnswerDTOOut aiQuestionAnswerDTOOut = new AiQuestionAnswerDTOOut(
-                answer.getId(),
-                answer.getAiGeneratedQuestion().getId(),
-                answer.getAiGeneratedQuestion().getQuestionText(),
-                answer.getAnswerText(),
-                answer.getCreatedAt()
-        );
-        return aiQuestionAnswerDTOOut;
+        AiQuestionAnswerDTOOut dto = new AiQuestionAnswerDTOOut();
+        dto.setId(answer.getId());
+        dto.setAiGeneratedQuestionId(answer.getAiGeneratedQuestion().getId());
+        dto.setQuestionText(answer.getAiGeneratedQuestion().getQuestionText());
+        dto.setAnswerText(answer.getAnswerText());
+        return dto;
     }
 }

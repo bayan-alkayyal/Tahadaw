@@ -6,6 +6,9 @@ import org.example.tahadaw.Api.ApiResponse;
 import org.example.tahadaw.DTO.IN.GroupGiftCreateDTOIn;
 import org.example.tahadaw.DTO.IN.GroupGiftUpdateDTOIn;
 import org.example.tahadaw.DTO.OUT.GroupGiftDTOOut;
+import org.example.tahadaw.DTO.OUT.GroupGiftInviteDTOOut;
+import org.example.tahadaw.DTO.OUT.GroupGiftOptionDTOOut;
+import org.example.tahadaw.DTO.OUT.GroupGiftResultsDTOOut;
 import org.example.tahadaw.Model.GroupGiftInvite;
 import org.example.tahadaw.Model.GroupGiftOption;
 import org.example.tahadaw.Model.User;
@@ -72,16 +75,17 @@ public class GroupGiftController {
     }
 
     @GetMapping("/get-options/{groupGiftId}")
-    public ResponseEntity<?> getOptions(@PathVariable Long groupGiftId) {
-        return ResponseEntity.status(200).body(groupGiftService.getOptions(groupGiftId));
+    public ResponseEntity<List<GroupGiftOptionDTOOut>> getOptions(@PathVariable Long groupGiftId,
+                                                                 @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(groupGiftService.getOptions(user.getId(), groupGiftId));
     }
 
     @PostMapping("/send-invite/{groupGiftId}")
-    public ResponseEntity<?> sendInvites(@PathVariable Long groupGiftId,
+    public ResponseEntity<List<GroupGiftInviteDTOOut>> sendInvites(@PathVariable Long groupGiftId,
                                          @AuthenticationPrincipal User user,
                                          @RequestBody List<GroupGiftInvite> invites) {
 
-        return ResponseEntity.status(200).body(groupGiftService.sendInvites(user.getId(), groupGiftId, invites));
+        return ResponseEntity.ok(groupGiftService.sendInvites(user.getId(), groupGiftId, invites));
     }
 
     @PutMapping("/close-voting/{groupGiftId}")
@@ -93,9 +97,9 @@ public class GroupGiftController {
     }
 
     @GetMapping("/results/{groupGiftId}")
-    public ResponseEntity<?> getResults(@PathVariable Long groupGiftId,
+    public ResponseEntity<GroupGiftResultsDTOOut> getResults(@PathVariable Long groupGiftId,
                                         @AuthenticationPrincipal User user) {
 
-        return ResponseEntity.status(200).body(groupGiftService.getResults(user.getId(), groupGiftId));
+        return ResponseEntity.ok(groupGiftService.getResults(user.getId(), groupGiftId));
     }
 }

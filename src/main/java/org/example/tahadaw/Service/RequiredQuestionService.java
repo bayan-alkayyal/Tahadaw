@@ -3,9 +3,12 @@ package org.example.tahadaw.Service;
 import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.Api.ApiException;
 import org.example.tahadaw.DTO.OUT.RequiredQuestionDTOOut;
+import org.example.tahadaw.DTO.OUT.RequiredQuestionDetailDTOOut;
+import org.example.tahadaw.Mapper.ResponseMapper;
 import org.example.tahadaw.Model.GiftPlan;
 import org.example.tahadaw.Model.RequiredQuestion;
 import org.example.tahadaw.Repository.GiftPlanRepository;
+import org.example.tahadaw.Repository.RequiredQuestionAnswerRepository;
 import org.example.tahadaw.Repository.RequiredQuestionRepository;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +20,7 @@ import java.util.List;
 public class RequiredQuestionService {
 
     private final RequiredQuestionRepository requiredQuestionRepository;
+    private final RequiredQuestionAnswerRepository requiredQuestionAnswerRepository;
     private final GiftPlanRepository giftPlanRepository;
 
     //Bayan CRUD
@@ -27,8 +31,10 @@ public class RequiredQuestionService {
         requiredQuestionRepository.save(requiredQuestion);
     }
 
-    public List<RequiredQuestion> getRequiredQuestions() {
-        return requiredQuestionRepository.findAllByOrderByDisplayOrderAsc();
+    public List<RequiredQuestionDetailDTOOut> getRequiredQuestions() {
+        return requiredQuestionRepository.findAllByOrderByDisplayOrderAsc().stream()
+                .map(ResponseMapper::toRequiredQuestionDetailDto)
+                .toList();
     }
 
     public void updateRequiredQuestion(Long questionId, RequiredQuestion requiredQuestion) {
@@ -46,6 +52,10 @@ public class RequiredQuestionService {
     public void deleteRequiredQuestion(Long questionId) {
         RequiredQuestion requiredQuestion = requiredQuestionRepository.findRequiredQuestionById(questionId)
                 .orElseThrow(() -> new ApiException("Required question not found"));
+
+        if (requiredQuestionAnswerRepository.existsByRequiredQuestion_Id(questionId)) {
+            throw new ApiException("Cannot delete a required question that has answers. Disable it instead.");
+        }
 
         requiredQuestionRepository.delete(requiredQuestion);
     }

@@ -1,16 +1,18 @@
 package org.example.tahadaw.DTO.OUT;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-@Data
-@AllArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
 public class ProductSearchResultDTOOut {
 
+    private Long id;
     private String title;
-    private Long priceMinor;
+    private Double price;
     private String currency;
-    private String priceLabel;
     private String imageUrl;
     private String productUrl;
     private String sourceName;

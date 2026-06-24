@@ -5,9 +5,10 @@ import org.example.tahadaw.AI.AiJsonParser;
 import org.example.tahadaw.AI.AiService;
 import org.example.tahadaw.Api.ApiException;
 import org.example.tahadaw.DTO.OUT.AiQuestionAnswerDTOOut;
+import org.example.tahadaw.DTO.OUT.GiftIdeaRecommendationDTOOut;
+import org.example.tahadaw.Mapper.ResponseMapper;
 import org.example.tahadaw.Model.*;
 import org.example.tahadaw.Repository.*;
-import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
@@ -29,7 +30,13 @@ public class GiftRecommendationService {
     private final GiftHistoryRepository giftHistoryRepository;
     private final AiService aiService;
     private final AiAnswerService aiAnswerService;
-    private final ModelMapper modelMapper;
+
+    public List<GiftIdeaRecommendationDTOOut> listRecommendations(Long userId, Long giftPlanId) {
+        GiftPlan giftPlan = requireOwnedGiftPlan(userId, giftPlanId);
+        return giftIdeaRecommendationRepository.findByGiftPlan(giftPlan).stream()
+                .map(ResponseMapper::toGiftIdeaRecommendationDto)
+                .toList();
+    }
 
     @Transactional
     public void selectRecommendation(Long userId, Long recommendationId) {
@@ -52,18 +59,13 @@ public class GiftRecommendationService {
             giftIdeaRecommendationRepository.save(idea);
         }
         giftPlan.setSelectedGiftIdea(recommendation);
-        if (giftPlan.getStatus() == "RECOMMENDATIONS_GENERATED") {
-            giftPlan.setStatus("GIFT_IDEA_SELECTED");
+        if (GiftPlanStatus.canSelectGiftIdea(giftPlan.getStatus())) {
+            giftPlan.setStatus(GiftPlanStatus.GIFT_IDEA_SELECTED);
         }
         giftPlan.setUpdatedAt(LocalDateTime.now());
         giftPlanRepository.save(giftPlan);
     }
 
-    /**
-     * Reverses {@link #selectRecommendation}: clears the chosen gift idea and resets the
-     * plan back to RECOMMENDATIONS_GENERATED so the user can pick a different idea.
-     * Blocked once a product has been selected — the product must be cleared first.
-     */
     @Transactional
     public void unselectRecommendation(Long userId, Long recommendationId) {
         GiftIdeaRecommendation recommendation = giftIdeaRecommendationRepository.findGiftIdeaRecommendationById(recommendationId)
@@ -78,7 +80,7 @@ public class GiftRecommendationService {
             throw new ApiException("This gift idea is not selected.");
         }
 
-        if ("PRODUCT_SELECTED".equals(giftPlan.getStatus()) || giftPlan.getSelectedProduct() != null) {
+        if (GiftPlanStatus.PRODUCT_SELECTED.equals(giftPlan.getStatus()) || giftPlan.getSelectedProduct() != null) {
             throw new ApiException("A product is already selected. Remove the selected product before changing the gift idea.");
         }
 
@@ -86,72 +88,87 @@ public class GiftRecommendationService {
         giftIdeaRecommendationRepository.save(recommendation);
 
         giftPlan.setSelectedGiftIdea(null);
-        giftPlan.setStatus("RECOMMENDATIONS_GENERATED");
+        giftPlan.setStatus(GiftPlanStatus.RECOMMENDATIONS_GENERATED);
         giftPlan.setUpdatedAt(LocalDateTime.now());
         giftPlanRepository.save(giftPlan);
     }
 
-    public List<GiftIdeaRecommendation> generateGiftRecommendation(Long userId, Long giftPlanId) {
-
-
+    @Transactional
+    public List<GiftIdeaRecommendationDTOOut> generateGiftRecommendation(Long userId, Long giftPlanId) {
         GiftPlan giftPlan = requireOwnedGiftPlan(userId, giftPlanId);
 
-        if (!"AI_QUESTIONS_ANSWERED".equals(giftPlan.getStatus())) {
-            throw new ApiException("you have to answer all questions before generating AI recommendations.");
+        if (!GiftPlanStatus.AI_QUESTIONS_ANSWERED.equals(giftPlan.getStatus())) {
+            throw new ApiException("You have to answer all AI questions before generating gift recommendations.");
         }
 
-        String prompt = buildPrompt(giftPlan);
-
-        String response= aiService.ask(prompt);
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode rootNode = mapper.readTree(response);
-
-        JsonNode recommendationsNode = rootNode.get("recommendations");
-
-        List<GiftIdeaRecommendation> recommendations = mapper.convertValue(
-                recommendationsNode,
-                new TypeReference<List<GiftIdeaRecommendation>>() {}
-        );
-
-        if (recommendationsNode == null || !recommendationsNode.isArray() || recommendationsNode.isEmpty()) {
-            throw new ApiException("AI did not return any gift Recommendation.");
+        List<GiftIdeaRecommendation> existing = giftIdeaRecommendationRepository.findByGiftPlan(giftPlan);
+        if (!existing.isEmpty()) {
+            return existing.stream().map(ResponseMapper::toGiftIdeaRecommendationDto).toList();
         }
 
+        List<GiftIdeaRecommendation> recommendations = callAiForRecommendations(giftPlan);
         LocalDateTime now = LocalDateTime.now();
 
-        List<GiftIdeaRecommendation> aiGeneratedRecommendation = new ArrayList<>();
         for (GiftIdeaRecommendation giftRecommendation : recommendations) {
-
             giftRecommendation.setIsSelected(false);
             giftRecommendation.setGiftPlan(giftPlan);
             giftRecommendation.setCreatedAt(now);
             giftIdeaRecommendationRepository.save(giftRecommendation);
-
         }
 
-        giftPlan.setStatus("AI_GENERATED_");
+        giftPlan.setStatus(GiftPlanStatus.RECOMMENDATIONS_GENERATED);
         giftPlan.setUpdatedAt(now);
-
         giftPlanRepository.save(giftPlan);
 
-        return recommendations;
+        return recommendations.stream().map(ResponseMapper::toGiftIdeaRecommendationDto).toList();
     }
 
     @Transactional
-    public List<GiftIdeaRecommendation> regenerateGiftRecommendation(Long userId, Long giftPlanId) {
+    public List<GiftIdeaRecommendationDTOOut> regenerateGiftRecommendation(Long userId, Long giftPlanId) {
         GiftPlan giftPlan = requireOwnedGiftPlan(userId, giftPlanId);
+
+        if (giftPlan.getSelectedProduct() != null) {
+            throw new ApiException("Remove the selected product before regenerating gift recommendations.");
+        }
 
         List<GiftIdeaRecommendation> previousRecommendations =
                 giftIdeaRecommendationRepository.findByGiftPlan(giftPlan);
 
         for (GiftIdeaRecommendation recommendation : previousRecommendations) {
-            if (recommendation.getIsSelected()) {
-                throw new ApiException("You cannot regenerate a gift recommendation you already selecte a recommendation .");
+            if (Boolean.TRUE.equals(recommendation.getIsSelected())) {
+                throw new ApiException("You cannot regenerate recommendations after selecting a gift idea.");
             }
         }
 
         String prompt = buildRegeneratePrompt(giftPlan, previousRecommendations);
+        List<GiftIdeaRecommendation> recommendations = callAiForRecommendationsWithPrompt(prompt, previousRecommendations);
 
+        giftIdeaRecommendationRepository.deleteAll(previousRecommendations);
+
+        LocalDateTime now = LocalDateTime.now();
+        List<GiftIdeaRecommendation> saved = new ArrayList<>();
+        for (GiftIdeaRecommendation giftRecommendation : recommendations) {
+            giftRecommendation.setId(null);
+            giftRecommendation.setIsSelected(false);
+            giftRecommendation.setGiftPlan(giftPlan);
+            giftRecommendation.setCreatedAt(now);
+            saved.add(giftIdeaRecommendationRepository.save(giftRecommendation));
+        }
+
+        giftPlan.setSelectedGiftIdea(null);
+        giftPlan.setStatus(GiftPlanStatus.RECOMMENDATIONS_GENERATED);
+        giftPlan.setUpdatedAt(now);
+        giftPlanRepository.save(giftPlan);
+
+        return saved.stream().map(ResponseMapper::toGiftIdeaRecommendationDto).toList();
+    }
+
+    private List<GiftIdeaRecommendation> callAiForRecommendations(GiftPlan giftPlan) {
+        return callAiForRecommendationsWithPrompt(buildPrompt(giftPlan), List.of());
+    }
+
+    private List<GiftIdeaRecommendation> callAiForRecommendationsWithPrompt(
+            String prompt, List<GiftIdeaRecommendation> previousRecommendations) {
         String response = aiService.ask(prompt);
         ObjectMapper mapper = new ObjectMapper();
         JsonNode rootNode = mapper.readTree(response);
@@ -166,17 +183,15 @@ public class GiftRecommendationService {
                 new TypeReference<List<GiftIdeaRecommendation>>() {}
         );
 
-        // make sure the AI actually gave us something new before we touch the old data
-        List<String> previousNames = new ArrayList<>();
-        for (GiftIdeaRecommendation previous : previousRecommendations) {
-            if (previous.getProductName() != null) {
-                previousNames.add(previous.getProductName().toLowerCase());
+        if (!previousRecommendations.isEmpty()) {
+            List<String> previousNames = new ArrayList<>();
+            for (GiftIdeaRecommendation previous : previousRecommendations) {
+                if (previous.getProductName() != null) {
+                    previousNames.add(previous.getProductName().toLowerCase());
+                }
             }
-        }
 
-        boolean allRepeated = false;
-        if (!previousNames.isEmpty()) {
-            allRepeated = true;
+            boolean allRepeated = true;
             for (GiftIdeaRecommendation r : recommendations) {
                 String name = r.getProductName();
                 if (name == null || !previousNames.contains(name.toLowerCase())) {
@@ -184,30 +199,13 @@ public class GiftRecommendationService {
                     break;
                 }
             }
+
+            if (allRepeated) {
+                throw new ApiException("AI returned the same gift ideas again. Please try regenerating once more.");
+            }
         }
 
-        if (allRepeated) {
-            throw new ApiException("AI returned the same gift ideas again. Please try regenerating once more.");
-        }
-
-        // only delete the old ones once we know the new batch is valid and different
-        giftIdeaRecommendationRepository.deleteAll(previousRecommendations);
-
-        LocalDateTime now = LocalDateTime.now();
-        List<GiftIdeaRecommendation> newRecommendations = new ArrayList<>();
-        for (GiftIdeaRecommendation giftRecommendation : recommendations) {
-            giftRecommendation.setId(null);
-            giftRecommendation.setIsSelected(false);
-            giftRecommendation.setGiftPlan(giftPlan);
-            giftRecommendation.setCreatedAt(now);
-            newRecommendations.add(giftIdeaRecommendationRepository.save(giftRecommendation));
-        }
-
-        giftPlan.setStatus("AI_QUESTIONS_GENERATED");
-        giftPlan.setUpdatedAt(now);
-        giftPlanRepository.save(giftPlan);
-
-        return newRecommendations;
+        return recommendations;
     }
 
     private String buildRegeneratePrompt(GiftPlan giftPlan, List<GiftIdeaRecommendation> previousRecommendations) {
@@ -228,12 +226,12 @@ public class GiftRecommendationService {
     }
 
     public String buildPrompt(GiftPlan giftPlan) {
-        //bring the recipient and required answers
         Recipient recipient = giftPlan.getRecipient();
         List<RequiredQuestionAnswer> requiredAnswers =
                 requiredQuestionAnswerRepository.findRequiredQuestionAnswerByGiftPlan(giftPlan);
 
-        List<AiQuestionAnswerDTOOut> aiQuestionAndAnswer=aiAnswerService.listAnswers(giftPlan.getUser().getId(), giftPlan.getId());
+        List<AiQuestionAnswerDTOOut> aiQuestionAndAnswer =
+                aiAnswerService.listAnswers(giftPlan.getUser().getId(), giftPlan.getId());
 
         StringBuilder context = new StringBuilder();
 
@@ -281,16 +279,15 @@ public class GiftRecommendationService {
         }
         if (!aiQuestionAndAnswer.isEmpty()) {
             context.append("\n helping question answers:\n");
-            for (AiQuestionAnswerDTOOut QandAnswer : aiQuestionAndAnswer) {
+            for (AiQuestionAnswerDTOOut qAndAnswer : aiQuestionAndAnswer) {
                 context.append("- ")
-                        .append(QandAnswer.getQuestionText())
+                        .append(qAndAnswer.getQuestionText())
                         .append(": ")
-                        .append(QandAnswer.getAnswerText())
+                        .append(qAndAnswer.getAnswerText())
                         .append('\n');
             }
         }
 
-        // gifts this recipient has already received, so the AI avoids repeating them
         List<GiftHistory> pastGifts = giftHistoryRepository
                 .findByRecipient_IdAndUser_IdOrderByCreatedAtDesc(recipient.getId(), giftPlan.getUser().getId());
         if (!pastGifts.isEmpty()) {
@@ -354,16 +351,12 @@ public class GiftRecommendationService {
         return giftPlan;
     }
 
-    public GiftIdeaRecommendation getSelectedRecommendation(Long userId, Long giftPlanId) {
+    public GiftIdeaRecommendationDTOOut getSelectedRecommendation(Long userId, Long giftPlanId) {
         GiftPlan giftPlan = requireOwnedGiftPlan(userId, giftPlanId);
 
         return giftIdeaRecommendationRepository
                 .findByGiftPlanAndIsSelectedTrue(giftPlan)
+                .map(ResponseMapper::toGiftIdeaRecommendationDto)
                 .orElseThrow(() -> new ApiException("You have not select any Recommendation for this gift plan."));
     }
-
-
-
-
-
 }

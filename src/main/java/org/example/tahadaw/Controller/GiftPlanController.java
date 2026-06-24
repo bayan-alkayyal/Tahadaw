@@ -14,7 +14,8 @@ import org.example.tahadaw.DTO.OUT.RequiredQuestionAnswerDTOOut;
 import org.example.tahadaw.DTO.OUT.RequiredQuestionDTOOut;
 import org.example.tahadaw.DTO.OUT.SelectedProductDTOOut;
 import org.example.tahadaw.DTO.OUT.SurprisePlanDTOOut;
-import org.example.tahadaw.Model.GiftPlan;
+import org.example.tahadaw.DTO.OUT.GiftPlanDTOOut;
+import org.example.tahadaw.DTO.OUT.GiftPlanSummeryDTOOut;
 import org.example.tahadaw.Model.User;
 import org.example.tahadaw.Service.*;
 import org.springframework.http.ResponseEntity;
@@ -42,28 +43,27 @@ public class GiftPlanController {
 
     // Shahad
     @PostMapping("/create/{recipientId}")
-    public ResponseEntity<?> create(@AuthenticationPrincipal User user,
-                                          @PathVariable Long recipientId,
-                                          @RequestBody @Valid GiftPlanDTOIn request) {
-        giftPlanService.createGiftPlan(user.getId(), recipientId, request);
-        return ResponseEntity.status(200).body(new ApiResponse("Gift plan created successfully."));
+    public ResponseEntity<GiftPlanDTOOut> create(@AuthenticationPrincipal User user,
+                                                 @PathVariable Long recipientId,
+                                                 @RequestBody @Valid GiftPlanDTOIn request) {
+        return ResponseEntity.ok(giftPlanService.createGiftPlan(user.getId(), recipientId, request));
     }
 
 
     // Shahad
     @GetMapping("/get-my-plans")
-    public ResponseEntity<List<GiftPlan>> getMyPlans(@AuthenticationPrincipal User user) {
+    public ResponseEntity<List<GiftPlanDTOOut>> getMyPlans(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(giftPlanService.listByUser(user.getId()));
     }
 
     @GetMapping("/get-plan-by-id/{giftPlanId}")
-    public ResponseEntity<GiftPlan> getPlanById(@AuthenticationPrincipal User user,
+    public ResponseEntity<GiftPlanDTOOut> getPlanById(@AuthenticationPrincipal User user,
                                            @PathVariable Long giftPlanId) {
         return ResponseEntity.ok(giftPlanService.getGiftPlanById(user.getId(), giftPlanId));
     }
 
     @PutMapping("/update/{giftPlanId}")
-    public ResponseEntity<GiftPlan> update(@AuthenticationPrincipal User user,
+    public ResponseEntity<GiftPlanDTOOut> update(@AuthenticationPrincipal User user,
                                            @PathVariable Long giftPlanId,
                                            @RequestBody @Valid GiftPlanDTOIn request) {
         return ResponseEntity.ok(giftPlanService.updateGiftPlan(user.getId(), giftPlanId, request));
@@ -77,17 +77,17 @@ public class GiftPlanController {
     }
 
     @GetMapping("/get-active-plans")
-    public ResponseEntity<List<GiftPlan>> getActivePlans(@AuthenticationPrincipal User user) {
-        return ResponseEntity.status(200).body(giftPlanService.listAllActiveGiftPlans(user.getId()));
+    public ResponseEntity<List<GiftPlanDTOOut>> getActivePlans(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(giftPlanService.listAllActiveGiftPlans(user.getId()));
     }
     @GetMapping("/get-previous-plans")
-    public ResponseEntity<List<GiftPlan>> getPreviousPlans(@AuthenticationPrincipal User user) {
-        return ResponseEntity.status(200).body(giftPlanService.listAllPreviousGiftPlans(user.getId()));
+    public ResponseEntity<List<GiftPlanDTOOut>> getPreviousPlans(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(giftPlanService.listAllPreviousGiftPlans(user.getId()));
     }
 
     @GetMapping("/get-gift-plan-Summery/{giftPlanId}")
-    public ResponseEntity<?> getGiftPlanSummery(@AuthenticationPrincipal User user,@PathVariable Long giftPlanId) {
-        return ResponseEntity.status(200).body(giftPlanService.getGiftPlanSummary(user.getId(), giftPlanId));
+    public ResponseEntity<GiftPlanSummeryDTOOut> getGiftPlanSummery(@AuthenticationPrincipal User user,@PathVariable Long giftPlanId) {
+        return ResponseEntity.ok(giftPlanService.getGiftPlanSummary(user.getId(), giftPlanId));
     }
 
 

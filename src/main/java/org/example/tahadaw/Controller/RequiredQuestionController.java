@@ -3,7 +3,7 @@ package org.example.tahadaw.Controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.Api.ApiResponse;
-import org.example.tahadaw.DTO.IN.RequiredQuestionAnswersSubmitDTOIn;
+import org.example.tahadaw.DTO.OUT.RequiredQuestionDetailDTOOut;
 import org.example.tahadaw.DTO.OUT.RequiredQuestionAnswerDTOOut;
 import org.example.tahadaw.DTO.OUT.RequiredQuestionDTOOut;
 import org.example.tahadaw.Model.RequiredQuestion;
@@ -29,8 +29,8 @@ public class RequiredQuestionController {
     }
 
     @GetMapping("/get")
-    public ResponseEntity<?> getRequiredQuestions() {
-        return ResponseEntity.status(200).body(requiredQuestionService.getRequiredQuestions());
+    public ResponseEntity<List<RequiredQuestionDetailDTOOut>> getRequiredQuestions() {
+        return ResponseEntity.ok(requiredQuestionService.getRequiredQuestions());
     }
 
     @PutMapping("/update/{questionId}")

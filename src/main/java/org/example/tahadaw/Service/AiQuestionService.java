@@ -8,16 +8,21 @@ import org.example.tahadaw.DTO.IN.AiGeneratedQuestionDTOIn;
 import org.example.tahadaw.DTO.IN.AiQuestionAnswerItemDTOIn;
 import org.example.tahadaw.DTO.IN.AiQuestionAnswersSubmitDTOIn;
 import org.example.tahadaw.DTO.OUT.AiGeneratedQuestionDTOOut;
+import org.example.tahadaw.DTO.OUT.AiQuestionAnswerDetailDTOOut;
+import org.example.tahadaw.Mapper.ResponseMapper;
 import org.example.tahadaw.DTO.OUT.AiQuestionAnswerDTOOut;
 import org.example.tahadaw.Model.AiGeneratedQuestion;
 import org.example.tahadaw.Model.AiQuestionAnswer;
 import org.example.tahadaw.Model.GiftPlan;
+import org.example.tahadaw.Model.GiftPlanStatus;
 import org.example.tahadaw.Model.Recipient;
+import org.example.tahadaw.Model.RequiredQuestion;
 import org.example.tahadaw.Model.RequiredQuestionAnswer;
 import org.example.tahadaw.Repository.AiGeneratedQuestionRepository;
 import org.example.tahadaw.Repository.AiQuestionAnswerRepository;
 import org.example.tahadaw.Repository.GiftPlanRepository;
 import org.example.tahadaw.Repository.RequiredQuestionAnswerRepository;
+import org.example.tahadaw.Repository.RequiredQuestionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
@@ -28,6 +33,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +43,7 @@ public class AiQuestionService {
     private final AiQuestionAnswerRepository aiQuestionAnswerRepository;
     private final GiftPlanRepository giftPlanRepository;
     private final RequiredQuestionAnswerRepository requiredQuestionAnswerRepository;
+    private final RequiredQuestionRepository requiredQuestionRepository;
     private final AiService aiService;
 
     // shahad-CRUD
@@ -55,23 +62,29 @@ public class AiQuestionService {
         aiGeneratedQuestionRepository.save(aiGeneratedQuestion);
     }
 
-    public List<AiGeneratedQuestion> getAllAiQuestion() {
-        return aiGeneratedQuestionRepository.findAll();
+    public List<AiGeneratedQuestionDTOOut> getAllAiQuestion() {
+        return aiGeneratedQuestionRepository.findAll().stream()
+                .map(ResponseMapper::toAiGeneratedQuestionDto)
+                .toList();
     }
 
     public void updateAiQuestion(long id, AiGeneratedQuestionDTOIn request) {
-        AiGeneratedQuestion oldAiGeneratedQuestion = getAiQuestionById(id);
+        AiGeneratedQuestion oldAiGeneratedQuestion = getAiQuestionEntityById(id);
         oldAiGeneratedQuestion.setQuestionText(request.getQuestionText());
         oldAiGeneratedQuestion.setReasonForQuestion(request.getReasonForQuestion());
         aiGeneratedQuestionRepository.save(oldAiGeneratedQuestion);
     }
 
     public void deleteAiQuestion(Long id) {
-        AiGeneratedQuestion aiGeneratedQuestion = getAiQuestionById(id);
+        AiGeneratedQuestion aiGeneratedQuestion = getAiQuestionEntityById(id);
         aiGeneratedQuestionRepository.delete(aiGeneratedQuestion);
     }
 
-    public AiGeneratedQuestion getAiQuestionById(Long id) {
+    public AiGeneratedQuestionDTOOut getAiQuestionById(Long id) {
+        return ResponseMapper.toAiGeneratedQuestionDto(getAiQuestionEntityById(id));
+    }
+
+    private AiGeneratedQuestion getAiQuestionEntityById(Long id) {
         AiGeneratedQuestion aiGeneratedQuestion = aiGeneratedQuestionRepository.findAiGeneratedQuestionById(id).orElse(null);
         if (aiGeneratedQuestion == null) {
             throw new IllegalArgumentException("Ai question not found");
@@ -82,15 +95,15 @@ public class AiQuestionService {
     // shahad-gift-plan flow
 
     @Transactional
-    public List<AiGeneratedQuestion> generateQuestions(Long userId, Long giftPlanId) {
+    public List<AiGeneratedQuestionDTOOut> generateQuestions(Long userId, Long giftPlanId) {
         GiftPlan giftPlan = requireOwnedGiftPlan(userId, giftPlanId);
 
-         if (!"REQUIRED_QUESTIONS_ANSWERED".equals(giftPlan.getStatus())) {
-             throw new ApiException("Answer all required questions before generating AI questions.");
-         }
+        requireAllRequiredQuestionsAnswered(giftPlan);
 
-        if (aiGeneratedQuestionRepository.existsByGiftPlan_Id(giftPlanId)) {
-            throw new ApiException("AI questions already generated for this gift plan.");
+        List<AiGeneratedQuestion> existing =
+                aiGeneratedQuestionRepository.findByGiftPlan_IdOrderByDisplayOrderAsc(giftPlanId);
+        if (!existing.isEmpty()) {
+            return existing.stream().map(ResponseMapper::toAiGeneratedQuestionDto).toList();
         }
 
         String prompt = buildPrompt(giftPlan);
@@ -119,11 +132,11 @@ public class AiQuestionService {
             aiGeneratedQuestionRepository.save(question);
         }
 
-        giftPlan.setStatus("AI_QUESTIONS_GENERATED");
+        giftPlan.setStatus(GiftPlanStatus.AI_QUESTIONS_GENERATED);
         giftPlan.setUpdatedAt(now);
         giftPlanRepository.save(giftPlan);
 
-        return aiGeneratedQuestion;
+        return aiGeneratedQuestion.stream().map(ResponseMapper::toAiGeneratedQuestionDto).toList();
     }
 
 
@@ -137,13 +150,19 @@ public class AiQuestionService {
 
         List<AiGeneratedQuestionDTOOut> result = new ArrayList<>();
         for (AiGeneratedQuestion question : questions) {
-            result.add(toQuestionDto(question));
+            result.add(ResponseMapper.toAiGeneratedQuestionDto(question));
         }
         return result;
     }
     @Transactional
     public List<AiGeneratedQuestionDTOOut> regenerateQuestions(Long userId, Long giftPlanId) {
         GiftPlan giftPlan = requireOwnedGiftPlan(userId, giftPlanId);
+
+        if (GiftPlanStatus.isAtOrAfterRecommendations(giftPlan.getStatus()) || giftPlan.getSelectedProduct() != null) {
+            throw new ApiException("Cannot regenerate AI questions after gift recommendations have been generated.");
+        }
+
+        requireAllRequiredQuestionsAnswered(giftPlan);
 
         List<AiGeneratedQuestion> existing =
                 aiGeneratedQuestionRepository.findByGiftPlan_IdOrderByDisplayOrderAsc(giftPlanId);
@@ -184,14 +203,33 @@ public class AiQuestionService {
             question.setReasonForQuestion(AiJsonParser.requireText(questionNode, "reasonForQuestion"));
             question.setCreatedAt(now);
             question.setDisplayOrder(order++);
-            regenerated.add(toQuestionDto(aiGeneratedQuestionRepository.save(question)));
+            regenerated.add(ResponseMapper.toAiGeneratedQuestionDto(aiGeneratedQuestionRepository.save(question)));
         }
 
-        giftPlan.setStatus("AI_QUESTIONS_GENERATED");
+        giftPlan.setStatus(GiftPlanStatus.AI_QUESTIONS_GENERATED);
         giftPlan.setUpdatedAt(now);
         giftPlanRepository.save(giftPlan);
 
         return regenerated;
+    }
+
+    private void requireAllRequiredQuestionsAnswered(GiftPlan giftPlan) {
+        List<RequiredQuestion> activeQuestions =
+                requiredQuestionRepository.findByIsActiveTrueOrderByDisplayOrderAsc();
+        if (activeQuestions.isEmpty()) {
+            throw new ApiException("No active required questions are configured.");
+        }
+
+        Set<Long> answeredQuestionIds = requiredQuestionAnswerRepository
+                .findRequiredQuestionAnswerByGiftPlan(giftPlan).stream()
+                .map(answer -> answer.getRequiredQuestion().getId())
+                .collect(Collectors.toSet());
+
+        for (RequiredQuestion question : activeQuestions) {
+            if (!answeredQuestionIds.contains(question.getId())) {
+                throw new ApiException("Answer all required questions before generating AI questions.");
+            }
+        }
     }
 
 
@@ -298,17 +336,6 @@ public class AiQuestionService {
                 Context:
                 %s
                 """.formatted(context);
-    }
-
-    private AiGeneratedQuestionDTOOut toQuestionDto(AiGeneratedQuestion question) {
-        return new AiGeneratedQuestionDTOOut(
-                question.getId(),
-                question.getGiftPlan().getId(),
-                question.getQuestionText(),
-                question.getReasonForQuestion(),
-                question.getDisplayOrder(),
-                question.getCreatedAt()
-        );
     }
 
 }

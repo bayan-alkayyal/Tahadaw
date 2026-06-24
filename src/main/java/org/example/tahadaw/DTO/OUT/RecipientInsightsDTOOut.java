@@ -7,15 +7,10 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Per-recipient gifting insights ("what did I give Mom?"): totals, what was given when,
- * which occasions/stores come up most, and a chronological spend timeline (budget trend).
- */
 @Data
 @AllArgsConstructor
 public class RecipientInsightsDTOOut {
 
-    private Long recipientId;
     private String recipientName;
     private long totalGifts;
     private double totalSpent;

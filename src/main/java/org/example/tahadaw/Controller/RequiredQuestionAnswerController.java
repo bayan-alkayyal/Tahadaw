@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.Api.ApiResponse;
 import org.example.tahadaw.DTO.IN.RequiredQuestionAnswerDTOIn;
 import org.example.tahadaw.DTO.IN.RequiredQuestionAnswersSubmitDTOIn;
+import org.example.tahadaw.DTO.OUT.RequiredQuestionAnswerDetailDTOOut;
 import org.example.tahadaw.DTO.OUT.RequiredQuestionAnswerDTOOut;
 import org.example.tahadaw.Model.User;
 import org.example.tahadaw.Service.RequiredQuestionAnswerService;
@@ -32,14 +33,14 @@ public class RequiredQuestionAnswerController {
 
     // READ - all
     @GetMapping("/get")
-    public ResponseEntity<?> getAllRequiredQuestionAnswers() {
-        return ResponseEntity.status(200).body(requiredQuestionAnswerService.getAllRequiredQuestionAnswer());
+    public ResponseEntity<List<RequiredQuestionAnswerDetailDTOOut>> getAllRequiredQuestionAnswers() {
+        return ResponseEntity.ok(requiredQuestionAnswerService.getAllRequiredQuestionAnswer());
     }
 
     // READ - by id
     @GetMapping("/get-by-id/{id}")
-    public ResponseEntity<?> getRequiredQuestionAnswerById(@PathVariable Long id) {
-        return ResponseEntity.status(200).body(requiredQuestionAnswerService.getRequiredQuestionAnswerById(id));
+    public ResponseEntity<RequiredQuestionAnswerDetailDTOOut> getRequiredQuestionAnswerById(@PathVariable Long id) {
+        return ResponseEntity.ok(requiredQuestionAnswerService.getRequiredQuestionAnswerById(id));
     }
 
     // UPDATE

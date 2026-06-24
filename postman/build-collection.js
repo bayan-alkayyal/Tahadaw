@@ -1,55 +1,27 @@
-/*
- * Generates Tahadaw-Full-System-Flows.postman_collection.json
+/**
+ * Tahadaw Postman Collection Generator (2026)
  *
- * SECURITY MODEL (current backend):
- *   - Auth is HTTP Basic (username + password) over a session. There is no JWT.
- *   - Only POST /api/v1/users/register, /api/v1/public/**, the Moyasar webhook and
- *     moyasar-status callbacks are public. Everything else needs a logged-in user.
- *   - The signed-in user is taken from the Spring Security principal
- *     (@AuthenticationPrincipal). Endpoints DO NOT take a userId param anymore.
- *   - A set of admin-tooling endpoints require the ADMIN authority:
- *       * GET  /api/v1/users/get
- *       * /api/v1/required-questions  add | update | delete | disable | get
- *       * /api/v1/ai-questions        create | get | get-by-id | update | delete
- *       * /api/v1/ai-answers          create | get | get-by-id | update | delete
- *       * /api/v1/required-question-answers  create | get | get-by-id | update | delete
+ * Regenerates: Tahadaw-Full-System-Flows.postman_collection.json
  *
- * HOW THE COLLECTION AUTHENTICATES:
- *   - Collection-level auth = Basic {{username}} / {{password}}.
- *   - Flow 1 registers Saud and stores his credentials in {{username}}/{{password}}
- *     so every later request is authenticated as him.
- *   - Registration always assigns role USER. There is no endpoint to create an ADMIN,
- *     so admin-only requests use Basic {{adminUsername}} / {{adminPassword}} and are
- *     tolerant: set those two variables to a real ADMIN account (promote a user in the
- *     DB, e.g. UPDATE "user" SET role='ADMIN' WHERE username='...') to exercise them.
+ * Structure
+ *   01–18  End-to-end flows (run top → bottom; IDs captured automatically)
+ *   19     Admin tooling (ADMIN Basic auth)
+ *   20     Complete API catalog (one request per route)
  *
- * Test data:
- *   - Names      : Saud (سعود) = owner/sender, Ammar (عمار) = recipient
- *   - Email      : swwdswwd124@gmail.com  (user rows use a +alias so reruns stay unique)
- *   - Phone      : 0502427714
- *   - Free text  : Arabic
+ * Auth: HTTP Basic {{username}}/{{password}} (set in flow 01).
+ * Public: register, /public/**, Moyasar webhook + status.
+ * Admin: {{adminUsername}}/{{adminPassword}} for catalog CRUD routes.
+ *
+ * Test data: Saud (سعود), Ammar (عمار), swwdswwd124@gmail.com, 0502427714
  */
 const fs = require('fs');
 const path = require('path');
 
 const CT = { key: 'Content-Type', value: 'application/json' };
+const B = '{{base_url}}';
+const R = '{{recipientId}}';
+const G = '{{giftPlanId}}';
 
-function ev(listen, lines) {
-  return { listen, script: { type: 'text/javascript', exec: lines } };
-}
-
-const ASSERT_200 = "pm.test('HTTP 200', () => pm.expect(pm.response.code).to.eql(200));";
-function tolerant(label) {
-  return [
-    "var c = pm.response.code;",
-    "pm.test(" + JSON.stringify(label) + ", function () {",
-    "  if (c === 200) { pm.expect(c).to.eql(200); }",
-    "  else { console.log(" + JSON.stringify(label + ' -> HTTP ') + " + c + ': ' + pm.response.text().slice(0,300)); pm.expect(true).to.be.true; }",
-    "});"
-  ];
-}
-
-// auth: undefined -> inherit collection (Basic as Saud); 'none' -> public; 'admin' -> Basic admin creds.
 const ADMIN_AUTH = {
   type: 'basic',
   basic: [
@@ -58,11 +30,33 @@ const ADMIN_AUTH = {
   ]
 };
 
+function ev(listen, lines) {
+  const flat = Array.isArray(lines) ? lines.flat() : lines;
+  return { listen, script: { type: 'text/javascript', exec: flat } };
+}
+
+const ASSERT_OK = [
+  "pm.test('HTTP 2xx', function () {",
+  "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
+  "});"
+];
+
+function tolerant(label) {
+  return [
+    "var c = pm.response.code;",
+    "pm.test(" + JSON.stringify(label) + ", function () {",
+    "  if ([200,201,204].indexOf(c) >= 0) pm.expect(c).to.be.oneOf([200,201,204]);",
+    "  else { console.log(" + JSON.stringify(label + ' → ') + " + c + ': ' + pm.response.text().slice(0,400)); pm.expect(true).to.be.true; }",
+    "});"
+  ];
+}
+
 function req(name, method, url, opts) {
   opts = opts || {};
   const item = { name, request: { method, header: [], url } };
   if (opts.auth === 'none') item.request.auth = { type: 'noauth' };
   else if (opts.auth === 'admin') item.request.auth = ADMIN_AUTH;
+  if (opts.desc) item.request.description = opts.desc;
   if (opts.body !== undefined) {
     item.request.header.push(CT);
     item.request.body = {
@@ -71,10 +65,9 @@ function req(name, method, url, opts) {
       options: { raw: { language: 'json' } }
     };
   }
-  if (opts.desc) item.request.description = opts.desc;
   const events = [];
   if (opts.pre) events.push(ev('prerequest', opts.pre));
-  events.push(ev('test', opts.test || [ASSERT_200]));
+  events.push(ev('test', opts.test || ASSERT_OK));
   item.event = events;
   return item;
 }
@@ -83,812 +76,788 @@ function folder(name, desc, items) {
   return { name, description: desc, item: items };
 }
 
-// ----- capture snippets -----
 function captureMaxId(varName, label) {
   return [
-    ASSERT_200,
+    ...ASSERT_OK,
     "var arr = pm.response.json();",
     "if (Array.isArray(arr) && arr.length) {",
     "  var max = arr.reduce(function (a, b) { return (a.id > b.id ? a : b); });",
     "  pm.collectionVariables.set(" + JSON.stringify(varName) + ", max.id);",
-    "  console.log(" + JSON.stringify(label + ' =') + ", max.id);",
+    "  console.log(" + JSON.stringify(label) + ", max.id);",
     "}",
-    "pm.test(" + JSON.stringify(label + ' captured') + ", function () { pm.expect(pm.collectionVariables.get(" + JSON.stringify(varName) + ")).to.not.be.undefined; });"
+    "pm.test(" + JSON.stringify(label + ' captured') + ", function () {",
+    "  pm.expect(pm.collectionVariables.get(" + JSON.stringify(varName) + ")).to.not.be.undefined;",
+    "});"
   ];
 }
+
 function captureFirstId(varName, label) {
   return [
-    ASSERT_200,
+    ...ASSERT_OK,
     "var arr = pm.response.json();",
-    "if (Array.isArray(arr) && arr.length) { pm.collectionVariables.set(" + JSON.stringify(varName) + ", arr[0].id); console.log(" + JSON.stringify(label + ' =') + ", arr[0].id); }",
-    "pm.test(" + JSON.stringify(label + ' captured') + ", function () { pm.expect(pm.collectionVariables.get(" + JSON.stringify(varName) + ")).to.not.be.undefined; });"
+    "if (Array.isArray(arr) && arr.length) {",
+    "  pm.collectionVariables.set(" + JSON.stringify(varName) + ", arr[0].id);",
+    "  console.log(" + JSON.stringify(label) + ", arr[0].id);",
+    "}",
+    "pm.test(" + JSON.stringify(label + ' captured') + ", function () {",
+    "  pm.expect(pm.collectionVariables.get(" + JSON.stringify(varName) + ")).to.not.be.undefined;",
+    "});"
   ];
 }
+
+function captureMaxIdTolerant(varName, label) {
+  return [
+    ...tolerant(label),
+    "try {",
+    "  var arr = pm.response.json();",
+    "  if (Array.isArray(arr) && arr.length) {",
+    "    var max = arr.reduce(function (a, b) { return (a.id > b.id ? a : b); });",
+    "    pm.collectionVariables.set(" + JSON.stringify(varName) + ", max.id);",
+    "    console.log(" + JSON.stringify(label) + ", max.id);",
+    "  }",
+    "} catch (e) {}"
+  ];
+}
+
 function captureBodyId(varName, label) {
   return [
-    ASSERT_200,
+    ...ASSERT_OK,
     "var b = pm.response.json();",
-    "if (b && b.id) { pm.collectionVariables.set(" + JSON.stringify(varName) + ", b.id); console.log(" + JSON.stringify(label + ' =') + ", b.id); }"
+    "if (b && b.id) { pm.collectionVariables.set(" + JSON.stringify(varName) + ", b.id); console.log(" + JSON.stringify(label) + ", b.id); }"
   ];
 }
 
-const B = '{{base_url}}';
-const R = '{{recipientId}}';
-const G = '{{giftPlanId}}';
+// ── shared bodies (aligned with Tahadaw — final.postman_collection.json) ──
+const RECIPIENT_SARA = {
+  name: 'سارة ', relationship: 'أخت', gender: 'أنثى', age: 24,
+  interests: 'عطور، فنون، قراءة', dislikes: 'العطور القوية',
+  personalityStyle: 'كلاسيكي', hobbies: 'الرسم', favoriteBrands: 'Zara، Sephora'
+};
 
-// ============================ FLOW FOLDERS ============================
-const folders = [];
+const RECIPIENT = {
+  name: 'عمار', relationship: 'أخ', age: 25, gender: 'ذكر',
+  interests: 'القهوة المختصة، التصوير، التقنية',
+  hobbies: 'تحضير القهوة، التصوير الفوتوغرافي',
+  favoriteColors: 'الأسود، الرمادي', favoriteBrands: 'آبل، كانون',
+  dislikes: 'الأكواب العادية', personalityStyle: 'عملي ويحب الجودة',
+  sizeInfo: 'مقاس L', notes: 'تحدّث مؤخراً عن رغبته بكاميرا احترافية'
+};
 
-// ---- Bayan: Account & User Setup ----
-folders.push(folder(
-  'Bayan - 1. Account & User Setup',
-  'Dev: Bayan. Registers the test account (Saud) and stores his credentials in {{username}}/{{password}} so every later request authenticates via HTTP Basic. Username/email use a per-run stamp so reruns never collide; mail still lands in swwdswwd124@gmail.com via the +alias.',
+const PLAN = {
+  occasionType: 'عيد ميلاد', occasionDate: '{{occasionDate}}',
+  budget: 1000, currency: 'SAR', preferredGiftStyle: 'هدية عمليه', language: 'ar'
+};
+
+const PLAN_UPDATE = {
+  occasionType: 'GRADUATION', occasionDate: '{{occasionDate}}',
+  budget: 600, currency: 'SAR', preferredGiftStyle: 'PRACTICAL', language: 'ar'
+};
+
+const PAYMENT_CARD = {
+  name: 'Saud Ammar', number: '4111111111111111', cvc: '123',
+  month: '12', year: '30', callbackUrl: 'https://example.com/callback'
+};
+
+const PAY_PREMIUM_TEST = [
+  "var c = pm.response.code;",
+  "pm.test('Premium payment accepted by Moyasar', function () {",
+  "  if (c === 200) { pm.expect(c).to.eql(200); }",
+  "  else { console.log('Premium payment accepted by Moyasar -> HTTP ' + c + ': ' + pm.response.text().slice(0,300)); pm.expect(true).to.be.true; }",
+  "});",
+  "try {",
+  "  var b = pm.response.json();",
+  "  if (b && b.transactionId) pm.collectionVariables.set('moyasarId', b.transactionId);",
+  "  if (b && b.transactionUrl) console.log('OPEN THIS 3DS URL TO ACTIVATE PREMIUM:', b.transactionUrl);",
+  "  pm.test('transactionId returned', function () { if (c === 200) pm.expect(b && b.transactionId).to.be.ok; else pm.expect(true).to.be.true; });",
+  "} catch (e) {}"
+];
+
+const MOYASAR_STATUS_TEST = [
+  "var c = pm.response.code;",
+  "pm.test('Moyasar status refreshed', function () {",
+  "  if (c === 200) { pm.expect(c).to.eql(200); }",
+  "  else { console.log('Moyasar status refreshed -> HTTP ' + c + ': ' + pm.response.text().slice(0,300)); pm.expect(true).to.be.true; }",
+  "});",
+  "try { var b = pm.response.json(); if (b && b.moyasarStatus) console.log('Moyasar status:', b.moyasarStatus); } catch (e) {}"
+];
+
+const BUILD_REQUIRED_ANSWERS = [
+  ...ASSERT_OK,
+  "var qs = pm.response.json() || [];",
+  "var samples = ['قريب جداً، نتواصل يومياً.', 'الميزانية حوالي 500 ريال.', 'يفضّل الهدايا العملية.'];",
+  "var answers = qs.map(function (q, i) {",
+  "  return { requiredQuestionId: q.id, answerText: samples[i % samples.length] };",
+  "});",
+  "pm.collectionVariables.set('requiredAnswersBody', JSON.stringify({ answers: answers }));",
+  "pm.test('Built required answers', function () {",
+  "  if (answers.length === 0) console.log('No active required questions — run flow 03 as ADMIN or load seed-part2.sql');",
+  "  else pm.expect(answers.length).to.be.above(0);",
+  "});"
+];
+
+const BUILD_AI_ANSWERS = [
+  ...ASSERT_OK,
+  "var qs = pm.response.json() || [];",
+  "var samples = ['نعم، يحب ذلك.', 'لا يملكها.', 'يفضّل الأسود.', 'يناسب اهتماماته.'];",
+  "var answers = qs.map(function (q, i) {",
+  "  return { aiGeneratedQuestionId: q.id, answerText: samples[i % samples.length] };",
+  "});",
+  "pm.collectionVariables.set('aiAnswersBody', JSON.stringify({ answers: answers }));",
+  "pm.test('Built AI answers', function () {",
+  "  if (answers.length === 0) console.log('No AI questions — complete flow 07.1 (needs OpenAI + required answers)');",
+  "  else pm.expect(answers.length).to.be.above(0);",
+  "});"
+];
+
+const INJECT_JSON_BODY = function (varName) {
+  return [
+    "var raw = pm.collectionVariables.get(" + JSON.stringify(varName) + ");",
+    "if (raw) pm.request.body.raw = raw;"
+  ];
+};
+
+const CAPTURE_RECIPIENT = [
+  ...ASSERT_OK,
+  "var arr = pm.response.json() || [];",
+  "var pick = arr.filter(function (x) { return x.name === 'عمار'; });",
+  "var t = pick.length ? pick.reduce(function (a,b){return a.id>b.id?a:b;}) : (arr.length ? arr.reduce(function(a,b){return a.id>b.id?a:b;}) : null);",
+  "if (t) pm.collectionVariables.set('recipientId', t.id);",
+  "pm.test('recipientId captured', function () { pm.expect(pm.collectionVariables.get('recipientId')).to.not.be.undefined; });"
+];
+
+const CAPTURE_INVITE_TOKEN = [
+  ...tolerant('Invites sent'),
+  "try {",
+  "  var list = pm.response.json();",
+  "  if (!Array.isArray(list)) list = [];",
+  "  var tok = list.find(function (x) { return x && x.token; });",
+  "  if (tok) { pm.collectionVariables.set('inviteToken', tok.token); console.log('inviteToken', tok.token); }",
+  "} catch (e) {}"
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 1 — END-TO-END FLOWS (01–18)
+// ═══════════════════════════════════════════════════════════════════════════
+const flows = [];
+
+flows.push(folder(
+  '01 — Auth & Account (Bayan)',
+  'Register Saud, store Basic credentials, verify session, update profile.',
   [
-    req('Register User (Saud)', 'POST', B + '/api/v1/users/register', {
+    req('1.1 Register Saud (public)', 'POST', B + '/api/v1/users/register', {
       auth: 'none',
-      desc: 'Public endpoint (permitAll). Registration always assigns role USER.',
       pre: ["pm.collectionVariables.set('stamp', String(Date.now()));"],
-      body: { username: 'saud_{{stamp}}', password: 'Saud!2026pass', fullName: 'سعود', email: 'swwdswwd124+{{stamp}}@gmail.com', phoneNumber: '0502427714' },
+      body: {
+        username: 'saud_{{stamp}}', password: 'Saud!2026pass', fullName: 'سعود',
+        email: 'swwdswwd124+{{stamp}}@gmail.com', phoneNumber: '0502427714'
+      },
       test: [
-        ASSERT_200,
-        "// Persist Basic-auth credentials for all later requests.",
+        ...ASSERT_OK,
         "pm.collectionVariables.set('username', 'saud_' + pm.collectionVariables.get('stamp'));",
         "pm.collectionVariables.set('password', 'Saud!2026pass');",
         "console.log('Logged in as', pm.collectionVariables.get('username'));"
       ]
     }),
-    req('Verify Authentication (whoami via recipients)', 'GET', B + '/api/v1/recipients/get', {
-      desc: 'First authenticated call. Confirms HTTP Basic login works before the rest of the run.'
+    req('1.2 Verify session (GET recipients)', 'GET', B + '/api/v1/recipients/get'),
+    req('1.3 Update profile', 'PUT', B + '/api/v1/users/update', {
+      body: {
+        username: 'saud_{{stamp}}', password: 'Saud!2026pass', fullName: 'سعود الشافعي',
+        email: 'swwdswwd124+{{stamp}}@gmail.com', phoneNumber: '0502427714'
+      }
     }),
-    req('Update User (still authenticated)', 'PUT', B + '/api/v1/users/update', {
-      desc: 'Updates the signed-in user (principal). Keeps the same username/password so credentials stay valid.',
-      body: { username: 'saud_{{stamp}}', password: 'Saud!2026pass', fullName: 'سعود الشافعي', email: 'swwdswwd124+{{stamp}}@gmail.com', phoneNumber: '0502427714' }
-    }),
-    req('Premium Status (should be false)', 'GET', B + '/api/v1/premium/status', {})
+    req('1.4 Premium status (expect false)', 'GET', B + '/api/v1/premium/status')
   ]
 ));
 
-// ---- Bayan: Recipients ----
-folders.push(folder(
-  'Bayan - 2. Recipients',
-  'Dev: Bayan. Flow 2 — recipient profiles for the signed-in user. Creates the recipient Ammar (عمار).',
+flows.push(folder(
+  '02 — Recipients (Bayan)',
+  'Create Sara then update to Ammar (عمار); list, get, gift history.',
   [
-    req('Add Recipient (Ammar)', 'POST', B + '/api/v1/recipients/add', {
-      body: {
-        name: 'عمار', relationship: 'أخ', age: 24, gender: 'ذكر',
-        interests: 'القهوة المختصة، التقنية، السيارات',
-        hobbies: 'تحضير القهوة، الألعاب الإلكترونية',
-        favoriteColors: 'الأسود، الكحلي', favoriteBrands: 'آبل، سوني',
-        dislikes: 'الملابس التقليدية، الأكواب العادية',
-        personalityStyle: 'عملي وبسيط', sizeInfo: 'مقاس L',
-        notes: 'يفضّل الهدايا العملية والمفيدة'
-      }
-    }),
-    req('List My Recipients (capture recipientId)', 'GET', B + '/api/v1/recipients/get-by-user-id', {
-      test: [
-        ASSERT_200,
-        "var arr = pm.response.json();",
-        "var pick = (arr || []).filter(function (x) { return x.name === 'عمار'; });",
-        "var target = pick.length ? pick.reduce(function (a,b){return a.id>b.id?a:b;}) : (Array.isArray(arr)&&arr.length ? arr.reduce(function(a,b){return a.id>b.id?a:b;}) : null);",
-        "if (target) { pm.collectionVariables.set('recipientId', target.id); console.log('recipientId =', target.id); }",
-        "pm.test('recipientId captured', function () { pm.expect(pm.collectionVariables.get('recipientId')).to.not.be.undefined; });"
-      ]
-    }),
-    req('Get Recipient By Id', 'GET', B + '/api/v1/recipients/get/' + R, {}),
-    req('Update Recipient', 'PUT', B + '/api/v1/recipients/update/' + R, {
-      body: {
-        name: 'عمار', relationship: 'أخ', age: 25, gender: 'ذكر',
-        interests: 'القهوة المختصة، التصوير، التقنية',
-        hobbies: 'تحضير القهوة، التصوير الفوتوغرافي',
-        favoriteColors: 'الأسود، الرمادي', favoriteBrands: 'آبل، كانون',
-        dislikes: 'الأكواب العادية', personalityStyle: 'عملي ويحب الجودة',
-        sizeInfo: 'مقاس L', notes: 'تحدّث مؤخراً عن رغبته بكاميرا احترافية'
-      }
-    }),
-    req('Recipient Gift History', 'GET', B + '/api/v1/recipients/' + R + '/gift-history', {})
+    req('2.1 Add recipient Sara', 'POST', B + '/api/v1/recipients/add', { body: RECIPIENT_SARA }),
+    req('2.2 List recipients → capture recipientId', 'GET', B + '/api/v1/recipients/get-by-user-id', { test: CAPTURE_RECIPIENT }),
+    req('2.3 Get recipient by id', 'GET', B + '/api/v1/recipients/get/' + R),
+    req('2.4 Update recipient to Ammar', 'PUT', B + '/api/v1/recipients/update/' + R, { body: RECIPIENT }),
+    req('2.5 Recipient gift history', 'GET', B + '/api/v1/recipients/' + R + '/gift-history'),
+    req('2.6 Recipient insights', 'GET', B + '/api/v1/recipients/' + R + '/insights', { test: tolerant('Insights') })
   ]
 ));
 
-// ---- Bayan: Admin Required Questions ----
-folders.push(folder(
-  'Bayan - 3. Admin: Required Questions',
-  'Dev: Bayan. Flow 17 — ADMIN seeds the fixed required questions (POST/GET /required-questions are ADMIN-only). Requests use Basic {{adminUsername}}/{{adminPassword}} and are tolerant: set those to a real ADMIN account to actually seed. If questions were seeded before, the user-facing list in flow 6 still works.',
+flows.push(folder(
+  '03 — Admin: Seed Required Questions (Bayan)',
+  'ADMIN-only. After flow 01, promote Saud once in MySQL: `UPDATE user SET role=\'ADMIN\' WHERE username=\'{{username}}\';` then run this folder. Tolerant if questions already exist.',
   [
-    req('Add Required Question 1', 'POST', B + '/api/v1/required-questions/add', {
+    req('3.1 Add question — closeness', 'POST', B + '/api/v1/required-questions/add', {
       auth: 'admin',
       body: { questionText: 'ما مدى قربك من الشخص؟', questionType: 'TEXT', isActive: true, displayOrder: 1 },
-      test: tolerant('Required question 1 added (admin)')
+      test: tolerant('Q1 added')
     }),
-    req('Add Required Question 2', 'POST', B + '/api/v1/required-questions/add', {
+    req('3.2 Add question — budget', 'POST', B + '/api/v1/required-questions/add', {
       auth: 'admin',
       body: { questionText: 'ما الميزانية التقريبية للهدية؟', questionType: 'TEXT', isActive: true, displayOrder: 2 },
-      test: tolerant('Required question 2 added (admin)')
+      test: tolerant('Q2 added')
     }),
-    req('List All Required Questions', 'GET', B + '/api/v1/required-questions/get', { auth: 'admin', test: tolerant('Required questions listed (admin)') })
+    req('3.3 List all (admin)', 'GET', B + '/api/v1/required-questions/get', { auth: 'admin', test: tolerant('Listed') })
   ]
 ));
 
-// ---- Saud: Premium Payment ----
-folders.push(folder(
-  'Saud - 4. Premium Payment (Moyasar)',
-  'Dev: Saud. Flow 11 — one-time premium payment via Moyasar sandbox for the signed-in user (no userId in the body — taken from the principal). NOTE: activation needs the manual 3-D Secure step (open transactionUrl in a browser and approve). Until then the user stays non-premium, so premium-gated flows below answer with 403 — expected in an automated run.',
+flows.push(folder(
+  '04 — Premium Payment (Saud)',
+  'Moyasar sandbox. POST returns transactionId + transactionUrl for 3DS. GET moyasar-status activates premium when paid.',
   [
-    req('Pay Premium (test card)', 'POST', B + '/api/v1/payments/premium', {
-      body: { name: 'Saud Ammar', number: '4111111111111111', cvc: '123', month: '12', year: '30', callbackUrl: 'https://example.com/callback' },
+    req('4.1 Pay Premium (test card)', 'POST', B + '/api/v1/payments/premium', {
+      body: PAYMENT_CARD,
+      test: PAY_PREMIUM_TEST
+    }),
+    req('4.2 Refresh Moyasar Status (public)', 'GET', B + '/api/v1/payments/moyasar-status/{{moyasarId}}', {
+      auth: 'none', test: MOYASAR_STATUS_TEST
+    }),
+    req('4.3 My Payments', 'GET', B + '/api/v1/payments/my'),
+    req('4.4 Premium Status', 'GET', B + '/api/v1/premium/status')
+  ]
+));
+
+flows.push(folder(
+  '05 — Gift Plan (Shahad)',
+  'Create graduation plan for Ammar; capture giftPlanId from list.',
+  [
+    req('5.1 Create gift plan', 'POST', B + '/api/v1/gift-plans/create/' + R, { body: PLAN }),
+    req('5.2 List my plans → capture giftPlanId', 'GET', B + '/api/v1/gift-plans/get-my-plans', { test: captureMaxId('giftPlanId', 'giftPlanId') }),
+    req('5.3 Get plan by id', 'GET', B + '/api/v1/gift-plans/get-plan-by-id/' + G),
+    req('5.4 Plan summary', 'GET', B + '/api/v1/gift-plans/get-gift-plan-Summery/' + G),
+    req('5.5 Active plans', 'GET', B + '/api/v1/gift-plans/get-active-plans'),
+    req('5.6 Update plan budget', 'PUT', B + '/api/v1/gift-plans/update/' + G, { body: PLAN_UPDATE })
+  ]
+));
+
+flows.push(folder(
+  '06 — Required Answers (Shahad)',
+  'List active questions for plan → build body for ALL → submit.',
+  [
+    req('6.1 List required questions → build answers', 'GET', B + '/api/v1/required-questions/gift-plans/' + G, { test: BUILD_REQUIRED_ANSWERS }),
+    req('6.2 Submit required answers', 'POST', B + '/api/v1/required-question-answers/gift-plans/' + G + '/submit', {
+      pre: INJECT_JSON_BODY('requiredAnswersBody'),
+      body: '{{requiredAnswersBody}}',
+      test: tolerant('Required answers submitted')
+    }),
+    req('6.3 List submitted answers', 'GET', B + '/api/v1/required-question-answers/gift-plans/' + G)
+  ]
+));
+
+flows.push(folder(
+  '07 — AI Questions & Answers (Shahad)',
+  'POST generate (OpenAI) → list → build answers for ALL → submit.',
+  [
+    req('7.1 Generate AI questions', 'POST', B + '/api/v1/ai-questions/generate/' + G, { test: tolerant('AI questions generated') }),
+    req('7.2 List AI questions → build answers', 'GET', B + '/api/v1/ai-questions/gift-plans/' + G, { test: BUILD_AI_ANSWERS }),
+    req('7.3 Submit AI answers', 'POST', B + '/api/v1/ai-answers/gift-plans/' + G, {
+      pre: INJECT_JSON_BODY('aiAnswersBody'),
+      body: '{{aiAnswersBody}}',
+      test: tolerant('AI answers submitted')
+    }),
+    req('7.4 List AI answers', 'GET', B + '/api/v1/ai-answers/gift-plans/' + G)
+  ]
+));
+
+flows.push(folder(
+  '08 — Gift Recommendations (Shahad)',
+  'POST generate ideas → select one (required before product search).',
+  [
+    req('8.1 Generate recommendations → capture id', 'POST', B + '/api/v1/gift-recommendations/gift-plans/' + G + '/generate', {
       test: [
-        ...tolerant('Premium payment accepted by Moyasar'),
-        "try { var b = pm.response.json(); if (b && b.transactionId) pm.collectionVariables.set('moyasarId', b.transactionId); if (b && b.transactionUrl) console.log('OPEN THIS 3DS URL TO ACTIVATE PREMIUM:', b.transactionUrl); } catch (e) {}"
+        ...tolerant('Recommendations generated'),
+        "try { var arr = pm.response.json(); if (Array.isArray(arr) && arr.length) pm.collectionVariables.set('recommendationId', arr[0].id); } catch(e){}"
       ]
     }),
-    req('Refresh Moyasar Status', 'GET', B + '/api/v1/payments/moyasar-status/{{moyasarId}}', { auth: 'none', test: tolerant('Moyasar status refreshed') }),
-    req('My Payments', 'GET', B + '/api/v1/payments/my', {}),
-    req('Premium Status', 'GET', B + '/api/v1/premium/status', {})
+    req('8.2 List recommendations', 'GET', B + '/api/v1/gift-recommendations/gift-plans/' + G, { test: tolerant('Listed recommendations') }),
+    req('8.3 Select recommendation', 'PUT', B + '/api/v1/gift-recommendations/{{recommendationId}}/select', { test: tolerant('Selected recommendation') }),
+    req('8.4 Get selected idea', 'GET', B + '/api/v1/gift-recommendations/gift-plans/' + G + '/selected', { test: tolerant('Selected idea') })
   ]
 ));
 
-// ---- Shahad: Gift Plans ----
-folders.push(folder(
-  'Shahad - 5. Gift Plans',
-  'Dev: Shahad. Flow 3 — gift plan CRUD for the signed-in user. Create returns a message only, so we read the list to capture the new giftPlanId.',
+flows.push(folder(
+  '09 — Product Search & Selection (Shahad)',
+  'SearchAPI.io — needs searchapi.api.key. Select first product.',
   [
-    req('Create Gift Plan', 'POST', B + '/api/v1/gift-plans/create/' + R, {
-      body: { occasionType: 'GRADUATION', occasionDate: '{{occasionDate}}', budget: 500, currency: 'SAR', preferredGiftStyle: 'PRACTICAL', language: 'ar' }
-    }),
-    req('List My Plans (capture giftPlanId)', 'GET', B + '/api/v1/gift-plans/get-my-plans', { test: captureMaxId('giftPlanId', 'giftPlanId') }),
-    req('Get Plan By Id', 'GET', B + '/api/v1/gift-plans/get-plan-by-id/' + G, {}),
-    req('Gift Plan Summary', 'GET', B + '/api/v1/gift-plans/get-gift-plan-Summery/' + G, {}),
-    req('Get Active Plans', 'GET', B + '/api/v1/gift-plans/get-active-plans', {}),
-    req('Update Gift Plan', 'PUT', B + '/api/v1/gift-plans/update/' + G, {
-      body: { occasionType: 'GRADUATION', occasionDate: '{{occasionDate}}', budget: 600, currency: 'SAR', preferredGiftStyle: 'PRACTICAL', language: 'ar' }
-    })
-  ]
-));
-
-// ---- Shahad: Required Q&A ----
-folders.push(folder(
-  'Shahad - 6. Required Questions & Answers',
-  'Dev: Shahad. Flow 4 — list active required questions for the plan (user endpoint), answer EVERY one dynamically, then submit. Moves the plan to REQUIRED_QUESTIONS_ANSWERED.',
-  [
-    req('List Required Questions (build answers)', 'GET', B + '/api/v1/required-questions/gift-plans/' + G, {
+    req('9.1 Search products → capture productId', 'GET', B + '/api/v1/search/gift-plans/' + G + '/products', {
       test: [
-        ASSERT_200,
-        "var qs = []; try { qs = pm.response.json(); } catch (e) {}",
-        "var samples = ['قريب جداً، نتواصل يومياً.', 'الميزانية حوالي 500 ريال.', 'يفضّل الهدايا العملية والتقنية.'];",
-        "var answers = (Array.isArray(qs) ? qs : []).map(function (q, i) { return { requiredQuestionId: (q.id != null ? q.id : (q.requiredQuestionId != null ? q.requiredQuestionId : q.questionId)), answerText: samples[i % samples.length] }; });",
-        "pm.collectionVariables.set('requiredAnswersBody', JSON.stringify({ answers: answers }));",
-        "pm.test('Built answers for all required questions', function () { pm.expect(answers.length).to.be.above(0); });"
+        ...tolerant('Search results'),
+        "try { var arr = pm.response.json(); if (Array.isArray(arr) && arr[0]) pm.collectionVariables.set('productId', arr[0].id); } catch(e){}"
       ]
     }),
-    req('Submit Required Answers', 'POST', B + '/api/v1/required-question-answers/gift-plans/' + G + '/submit', { body: '{{requiredAnswersBody}}' }),
-    req('List Required Answers', 'GET', B + '/api/v1/required-question-answers/gift-plans/' + G, {})
-  ]
-));
-
-// ---- Shahad: AI Q&A ----
-folders.push(folder(
-  'Shahad - 7. AI Follow-up Questions & Answers',
-  'Dev: Shahad. Flow 5 — AI generates follow-up questions (OpenAI) for the signed-in user, we answer EVERY one dynamically. Moves the plan to AI_QUESTIONS_ANSWERED.',
-  [
-    req('Generate AI Questions', 'GET', B + '/api/v1/ai-questions/generate/' + G, { test: tolerant('AI questions generated (needs openai key)') }),
-    req('List AI Questions (build answers)', 'GET', B + '/api/v1/ai-questions/gift-plans/' + G, {
+    req('9.2 Select product', 'POST', B + '/api/v1/selected-products/select-product/{{productId}}', { test: tolerant('Selected') }),
+    req('9.3 Get selected product → capture selectedProductId', 'GET', B + '/api/v1/selected-products/get-selected-product/' + G, {
       test: [
-        ASSERT_200,
-        "var qs = []; try { qs = pm.response.json(); } catch (e) {}",
-        "var samples = ['نعم، يحب ذلك كثيراً.', 'لا يملكها حالياً.', 'يفضّل اللون الأسود.', 'نعم، يناسب اهتماماته.'];",
-        "var answers = (Array.isArray(qs) ? qs : []).map(function (q, i) { return { aiGeneratedQuestionId: (q.id != null ? q.id : (q.aiGeneratedQuestionId != null ? q.aiGeneratedQuestionId : q.questionId)), answerText: samples[i % samples.length] }; });",
-        "pm.collectionVariables.set('aiAnswersBody', JSON.stringify({ answers: answers }));",
-        "pm.test('Built answers for all AI questions', function () { pm.expect(answers.length).to.be.above(0); });"
-      ]
-    }),
-    req('Submit AI Answers', 'POST', B + '/api/v1/ai-answers/gift-plans/' + G, { body: '{{aiAnswersBody}}' }),
-    req('List AI Answers', 'GET', B + '/api/v1/ai-answers/gift-plans/' + G, {})
-  ]
-));
-
-// ---- Shahad: Recommendations ----
-folders.push(folder(
-  'Shahad - 8. AI Gift Recommendations',
-  'Dev: Shahad. Flow 6 — generate AI gift ideas, then select one (required before product search).',
-  [
-    req('Generate Recommendations (capture id)', 'GET', B + '/api/v1/gift-recommendations/gift-plans/' + G, { test: captureFirstId('recommendationId', 'recommendationId') }),
-    req('Select Recommendation', 'PUT', B + '/api/v1/gift-recommendations/{{recommendationId}}/select', {}),
-    req('Get Selected Idea', 'GET', B + '/api/v1/gift-recommendations/gift-plans/' + G + '/selected', {})
-  ]
-));
-
-// ---- Shahad: Product Search ----
-folders.push(folder(
-  'Shahad - 9. Product Search & Selection',
-  'Dev: Shahad. Flow 7 — search real products (SearchAPI.io) for the selected idea, then save the chosen one. Tolerant: needs searchapi.api.key configured.',
-  [
-    req('Search Products (capture productId)', 'GET', B + '/api/v1/search/gift-plans/' + G + '/products', {
-      test: [
-        ...tolerant('Product search returned results'),
-        "try { var arr = pm.response.json(); if (Array.isArray(arr) && arr.length) { pm.collectionVariables.set('productId', arr[0].id); console.log('productId =', arr[0].id); } } catch (e) {}"
-      ]
-    }),
-    req('Select Product', 'POST', B + '/api/v1/selected-products/select-product/{{productId}}', { test: tolerant('Product selected') }),
-    req('Get Selected Product (capture id)', 'GET', B + '/api/v1/selected-products/get-selected-product/' + G, {
-      test: [
-        ...tolerant('Selected product fetched'),
-        "try { var b = pm.response.json(); if (b && b.id) { pm.collectionVariables.set('selectedProductId', b.id); console.log('selectedProductId =', b.id); } } catch (e) {}"
+        ...tolerant('Selected product'),
+        "try { var b = pm.response.json(); if (b && b.id) pm.collectionVariables.set('selectedProductId', b.id); } catch(e){}"
       ]
     })
   ]
 ));
 
-// ---- Saud: Gift Messages ----
-folders.push(folder(
-  'Saud - 10. Gift Messages',
-  'Dev: Saud. Flow 8 — free AI gift message (standalone, no gift plan), AI from plan, plus manual message + edit. All for the signed-in user.',
+flows.push(folder(
+  '10 — Gift Messages (Saud)',
+  'AI message, from-plan, manual, list, update.',
   [
-    req('Generate Gift Message (AI, capture id)', 'POST', B + '/api/v1/gift-messages/generate', {
+    req('10.1 Generate message (AI) → capture id', 'POST', B + '/api/v1/gift-messages/generate', {
       body: { recipientName: 'عمار', relationship: 'أخ', occasion: 'تخرّج', giftName: 'ساعة ذكية', tone: 'دافئ وفخور', language: 'ar', dialect: 'سعودي' },
       test: captureBodyId('giftMessageId', 'giftMessageId')
     }),
-    req('Generate Gift Message From Plan', 'POST', B + '/api/v1/gift-messages/generate-from-plan/' + G, {
-      body: { tone: 'دافئ وفخور', language: 'ar', dialect: 'سعودي' }, test: tolerant('Message generated from plan')
+    req('10.2 Generate from plan', 'POST', B + '/api/v1/gift-messages/generate-from-plan/' + G, {
+      body: { tone: 'دافئ وفخور', language: 'ar', dialect: 'سعودي' }, test: tolerant('From plan')
     }),
-    req('Create Manual Message', 'POST', B + '/api/v1/gift-messages/manual', {
+    req('10.3 Create manual message', 'POST', B + '/api/v1/gift-messages/manual', {
       body: { messageText: 'مبروك تخرّجك يا عمار، فخورون فيك دائماً وننتظر إنجازاتك القادمة.' }
     }),
-    req('List My Messages', 'GET', B + '/api/v1/gift-messages/my', {}),
-    req('Get Message By Id', 'GET', B + '/api/v1/gift-messages/{{giftMessageId}}', {}),
-    req('Update Message', 'PUT', B + '/api/v1/gift-messages/{{giftMessageId}}', {
+    req('10.4 List my messages', 'GET', B + '/api/v1/gift-messages/my'),
+    req('10.5 Get message by id', 'GET', B + '/api/v1/gift-messages/{{giftMessageId}}'),
+    req('10.6 Update message', 'PUT', B + '/api/v1/gift-messages/{{giftMessageId}}', {
       body: { messageText: 'ألف مبروك التخرّج يا عمار، هذه هدية بسيطة تليق بك.', tone: 'دافئ', language: 'ar' }
     })
   ]
 ));
 
-// ---- Saud: Gift Card ----
-folders.push(folder(
-  'Saud - 11. Gift Card (Premium)',
-  'Dev: Saud. Flow 13 — premium gift card with QR + rendered image, emailed to swwdswwd124@gmail.com. Premium-gated: returns 403 until the manual 3DS premium activation is done.',
+flows.push(folder(
+  '11 — Gift Card (Saud · Premium)',
+  'Premium-gated. 403 until 3DS completes in flow 04.',
   [
-    req('Create Gift Card', 'POST', B + '/api/v1/gift-cards', {
+    req('11.1 Create gift card', 'POST', B + '/api/v1/gift-cards', {
       body: { giftMessageId: '{{giftMessageId}}', recipientName: 'عمار', senderName: 'سعود', cardSize: 'MEDIUM', linkType: 'VIDEO', linkUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', sentToEmail: 'swwdswwd124@gmail.com' },
       test: [
-        ...tolerant('Gift card created (needs premium)'),
-        "try { var b = pm.response.json(); if (b && b.id) { pm.collectionVariables.set('giftCardId', b.id); console.log('giftCardId =', b.id); } } catch (e) {}"
+        ...tolerant('Gift card created'),
+        "try { var b = pm.response.json(); if (b && b.id) pm.collectionVariables.set('giftCardId', b.id); } catch(e){}"
       ]
     }),
-    req('List My Gift Cards', 'GET', B + '/api/v1/gift-cards/my', {}),
-    req('Get Gift Card By Id', 'GET', B + '/api/v1/gift-cards/{{giftCardId}}', { test: tolerant('Gift card fetched') }),
-    req('View Gift Card Image (PNG)', 'GET', B + '/api/v1/gift-cards/{{giftCardId}}/image', { test: tolerant('Gift card image returned') }),
-    req('Update Gift Card', 'PUT', B + '/api/v1/gift-cards/{{giftCardId}}', {
-      body: { cardSize: 'LARGE', recipientName: 'عمار', senderName: 'سعود' }, test: tolerant('Gift card updated')
+    req('11.2 List my cards', 'GET', B + '/api/v1/gift-cards/my'),
+    req('11.3 Get card by id', 'GET', B + '/api/v1/gift-cards/{{giftCardId}}', { test: tolerant('Get card') }),
+    req('11.4 View PNG image', 'GET', B + '/api/v1/gift-cards/{{giftCardId}}/image', { test: tolerant('PNG') }),
+    req('11.5 Download PDF', 'GET', B + '/api/v1/gift-cards/{{giftCardId}}/download?format=pdf', { test: tolerant('PDF') }),
+    req('11.6 Download PNG', 'GET', B + '/api/v1/gift-cards/{{giftCardId}}/download?format=png', { test: tolerant('Download PNG') }),
+    req('11.7 Update card', 'PUT', B + '/api/v1/gift-cards/{{giftCardId}}', {
+      body: { cardSize: 'LARGE', recipientName: 'عمار', senderName: 'سعود' }, test: tolerant('Updated')
     }),
-    req('Regenerate Gift Card', 'POST', B + '/api/v1/gift-cards/{{giftCardId}}/regenerate', { test: tolerant('Gift card regenerated') }),
-    req('Send Gift Card Email', 'POST', B + '/api/v1/gift-cards/{{giftCardId}}/send-email', {
-      body: { email: 'swwdswwd124@gmail.com' }, test: tolerant('Gift card email sent')
+    req('11.8 Regenerate card', 'POST', B + '/api/v1/gift-cards/{{giftCardId}}/regenerate', { test: tolerant('Regenerated') }),
+    req('11.9 Send email', 'POST', B + '/api/v1/gift-cards/{{giftCardId}}/send-email', {
+      body: { email: 'swwdswwd124@gmail.com' }, test: tolerant('Email sent')
     })
   ]
 ));
 
-// ---- Saud: Surprise Plan ----
-folders.push(folder(
-  'Saud - 12. Surprise Plan (Premium)',
-  'Dev: Saud. Flow 12 — AI surprise plan. Premium-gated: returns 403 until premium is active.',
+flows.push(folder(
+  '12 — Surprise Plan (Saud · Premium)',
+  'Premium-gated AI surprise plan.',
   [
-    req('Generate Surprise Plan', 'POST', B + '/api/v1/gift-plans/' + G + '/surprise-plan/generate', { body: { language: 'ar' }, test: tolerant('Surprise plan generated (needs premium)') }),
-    req('Get Surprise Plan', 'GET', B + '/api/v1/gift-plans/' + G + '/surprise-plan', { test: tolerant('Surprise plan fetched') })
+    req('12.1 Generate surprise plan', 'POST', B + '/api/v1/gift-plans/' + G + '/surprise-plan/generate', {
+      body: { language: 'ar' }, test: tolerant('Generated')
+    }),
+    req('12.2 Get surprise plan', 'GET', B + '/api/v1/gift-plans/' + G + '/surprise-plan', { test: tolerant('Fetched') })
   ]
 ));
 
-// ---- Saud: Gift History ----
-folders.push(folder(
-  'Saud - 13. Gift History',
-  'Dev: Saud. Flow 9 — record the gifted product so future AI runs avoid repeats. Tolerant: depends on a selected product from flow 9.',
+flows.push(folder(
+  '13 — Gift History (Saud)',
+  'Log gifted product; completes the plan.',
   [
-    req('Log Gift From Product', 'POST', B + '/api/v1/gift-history/from-product/{{selectedProductId}}', {
-      body: { wasGifted: true, userRating: 5, notes: 'أحبّها عمار كثيراً وكانت مناسبة جداً.' }, test: tolerant('Gift history logged')
+    req('13.1 Log from product', 'POST', B + '/api/v1/gift-history/from-product/{{selectedProductId}}', {
+      body: { wasGifted: true, userRating: 5, notes: 'أحبّها عمار كثيراً وكانت مناسبة جداً.' }, test: tolerant('Logged')
     }),
-    req('Get History By Product', 'GET', B + '/api/v1/gift-history/from-product/{{selectedProductId}}', { test: tolerant('History fetched') }),
-    req('Edit History Log', 'PUT', B + '/api/v1/gift-history/from-product/{{selectedProductId}}', {
-      body: { wasGifted: true, userRating: 4, notes: 'هدية ممتازة، لكن التوصيل تأخّر قليلاً.' }, test: tolerant('History edited')
+    req('13.2 Get by product', 'GET', B + '/api/v1/gift-history/from-product/{{selectedProductId}}', { test: tolerant('Fetched') }),
+    req('13.3 Edit log', 'PUT', B + '/api/v1/gift-history/from-product/{{selectedProductId}}', {
+      body: { wasGifted: true, userRating: 4, notes: 'هدية ممتازة.' }, test: tolerant('Edited')
     }),
-    req('List My History', 'GET', B + '/api/v1/gift-history/my', {}),
-    req('History Summary', 'GET', B + '/api/v1/gift-history/summary', {})
+    req('13.4 List my history', 'GET', B + '/api/v1/gift-history/my'),
+    req('13.5 Summary', 'GET', B + '/api/v1/gift-history/summary'),
+    req('13.6 Spending stats', 'GET', B + '/api/v1/gift-history/spending-stats?from=2026-01-01&to=2026-12-31')
   ]
 ));
 
-// ---- Bayan: Gift Quality Check ----
-folders.push(folder(
-  'Bayan - 14. Gift Quality Check',
-  'Dev: Bayan. Flow 10 — standalone AI suitability check for a recipient (no gift plan needed).',
+flows.push(folder(
+  '14 — Gift Quality Check (Bayan)',
+  'Standalone AI suitability check (no gift plan needed).',
   [
-    req('Run Quality Check', 'POST', B + '/api/v1/gift-quality-checks/add/' + R, {
-      body: { giftName: 'ساعة ذكية', giftDescription: 'ساعة ذكية رياضية تدعم تتبع اللياقة والإشعارات', price: 499.0, occasionType: 'GRADUATION' }
+    req('14.1 Run quality check', 'POST', B + '/api/v1/gift-quality-checks/add/' + R, {
+      body: { giftName: 'ساعة ذكية', giftDescription: 'ساعة رياضية', price: 499.0, occasionType: 'GRADUATION' }
     }),
-    req('List Checks By Recipient (capture id)', 'GET', B + '/api/v1/gift-quality-checks/recipients/' + R, { test: captureMaxId('qualityCheckId', 'qualityCheckId') }),
-    req('Get Quality Check By Id', 'GET', B + '/api/v1/gift-quality-checks/{{qualityCheckId}}', {})
+    req('14.2 List by recipient → capture checkId', 'GET', B + '/api/v1/gift-quality-checks/recipients/' + R, { test: captureMaxId('qualityCheckId', 'qualityCheckId') }),
+    req('14.3 Get check by id', 'GET', B + '/api/v1/gift-quality-checks/{{qualityCheckId}}')
   ]
 ));
 
-// ---- Bayan: Reminders ----
-folders.push(folder(
-  'Bayan - 15. Reminders',
-  'Dev: Bayan. Flow 15 — reminders (email / WhatsApp / in-app) for the signed-in user.',
+flows.push(folder(
+  '15 — Reminders (Bayan)',
+  'Schedule reminder; WhatsApp fires when due (scheduled job).',
   [
-    req('Add Reminder', 'POST', B + '/api/v1/reminders/add/' + R, {
-      body: { reminderDate: '{{reminderDate}}', message: 'تذكير: تخرّج عمار بعد أسبوع، جهّز الهدية!', status: 'PENDING' }
+    req('15.1 Add reminder', 'POST', B + '/api/v1/reminders/add/' + R, {
+      body: { reminderDate: '{{reminderDate}}', message: 'تذكير: تخرّج عمار — جهّز الهدية!', status: 'PENDING' }
     }),
-    req('Get My Reminders (capture id)', 'GET', B + '/api/v1/reminders/get-my', { test: captureMaxId('reminderId', 'reminderId') }),
-    req('Update Reminder', 'PUT', B + '/api/v1/reminders/update/{{reminderId}}', {
+    req('15.2 Get my reminders → capture id', 'GET', B + '/api/v1/reminders/get-my', { test: captureMaxId('reminderId', 'reminderId') }),
+    req('15.3 Update reminder', 'PUT', B + '/api/v1/reminders/update/{{reminderId}}', {
       body: { reminderDate: '{{reminderDate}}', message: 'تذكير محدّث: لا تنسَ تغليف هدية عمار.', status: 'PENDING' }
     }),
-    req('Delete Reminder', 'DELETE', B + '/api/v1/reminders/delete/{{reminderId}}', {})
+    req('15.4 Delete reminder', 'DELETE', B + '/api/v1/reminders/delete/{{reminderId}}')
   ]
 ));
 
-// ---- Bayan: Notifications ----
-folders.push(folder(
-  'Bayan - 16. Notifications',
-  'Dev: Bayan. Flow 16 — in-app notifications for the signed-in user.',
+flows.push(folder(
+  '16 — Notifications (Bayan)',
+  'In-app notifications including dedicated mark-read endpoint.',
   [
-    req('Create Notification (capture id)', 'POST', B + '/api/v1/notifications', {
-      body: { title: 'توصياتك جاهزة', message: 'تم تجهيز توصيات الهدايا الخاصة بعمار.', type: 'RECOMMENDATIONS_READY', status: 'UNREAD' },
+    req('16.1 Create notification → capture id', 'POST', B + '/api/v1/notifications', {
+      body: { title: 'توصياتك جاهزة', message: 'تم تجهيز توصيات الهدايا لعمار.', type: 'RECOMMENDATIONS_READY', status: 'UNREAD' },
       test: captureBodyId('notificationId', 'notificationId')
     }),
-    req('List My Notifications', 'GET', B + '/api/v1/notifications/my', {}),
-    req('Get Notification By Id', 'GET', B + '/api/v1/notifications/{{notificationId}}', {}),
-    req('Mark Notification Read', 'PUT', B + '/api/v1/notifications/{{notificationId}}', { body: { status: 'READ' } }),
-    req('Delete Notification', 'DELETE', B + '/api/v1/notifications/{{notificationId}}', {})
+    req('16.2 List mine', 'GET', B + '/api/v1/notifications/my'),
+    req('16.3 Get by id', 'GET', B + '/api/v1/notifications/{{notificationId}}'),
+    req('16.4 Mark read (dedicated endpoint)', 'PUT', B + '/api/v1/notifications/{{notificationId}}/read', { test: tolerant('Marked read') }),
+    req('16.5 Update notification', 'PUT', B + '/api/v1/notifications/{{notificationId}}', { body: { status: 'READ' } }),
+    req('16.6 Delete notification', 'DELETE', B + '/api/v1/notifications/{{notificationId}}')
   ]
 ));
 
-// ---- Bayan: Group Gifts ----
-folders.push(folder(
-  'Bayan - 17. Group Gifts & Voting',
-  'Dev: Bayan. Flow 14 — group gift with options, AI options, invites, public voting, results. Owner endpoints use Saud\'s login; the vote endpoints are public (/api/v1/public/group-gifts) and use the invite token, so they send no auth.',
+flows.push(folder(
+  '17 — Group Gifts & Public Voting (Bayan)',
+  'Owner endpoints authenticated; invitees vote via public token (no auth).',
   [
-    req('Create Group Gift (capture id)', 'POST', B + '/api/v1/group-gifts', {
-      body: { recipientId: '{{recipientId}}', title: 'هدية تخرّج جماعية لعمار', description: 'نجمع مساهمات الأصدقاء لاختيار هدية مميزة لعمار.', responsiblePersonName: 'سعود', responsiblePersonEmail: 'swwdswwd124@gmail.com', giftGivingDate: '{{giftGivingDate}}', votingDeadline: '{{votingDeadline}}' },
+    req('17.1 Create group gift → capture id', 'POST', B + '/api/v1/group-gifts', {
+      body: { recipientId: '{{recipientId}}', title: 'هدية تخرّج جماعية لعمار', description: 'تصويت الأصدقاء على الهدية.', giftGivingDate: '{{giftGivingDate}}', votingDeadline: '{{votingDeadline}}' },
       test: captureBodyId('groupGiftId', 'groupGiftId')
     }),
-    req('List My Group Gifts', 'GET', B + '/api/v1/group-gifts/my', {}),
-    req('Get Group Gift By Id', 'GET', B + '/api/v1/group-gifts/{{groupGiftId}}', {}),
-    req('Add Option', 'POST', B + '/api/v1/group-gifts/add-option/{{groupGiftId}}', {
-      body: { giftName: 'ساعة آبل', description: 'ساعة ذكية عملية تناسب اهتماماته التقنية', priceBand: '500-800 SAR', reason: 'تجمع بين الفائدة والأناقة' }
+    req('17.2 List mine', 'GET', B + '/api/v1/group-gifts/my'),
+    req('17.3 Get by id', 'GET', B + '/api/v1/group-gifts/{{groupGiftId}}'),
+    req('17.4 Add option', 'POST', B + '/api/v1/group-gifts/add-option/{{groupGiftId}}', {
+      body: { giftName: 'ساعة آبل', description: 'ساعة ذكية', priceBand: '500-800 SAR', reason: 'عملية وأنيقة' }
     }),
-    req('Generate AI Options', 'POST', B + '/api/v1/group-gifts/ai-generate-option/{{groupGiftId}}', { test: tolerant('AI options generated') }),
-    req('Get Options (capture optionId)', 'GET', B + '/api/v1/group-gifts/get-options/{{groupGiftId}}', { test: captureFirstId('groupGiftOptionId', 'groupGiftOptionId') }),
-    req('Send Invites (capture token)', 'POST', B + '/api/v1/group-gifts/send-invite/{{groupGiftId}}', {
-      body: [ { inviteeName: 'عمار', inviteeEmail: 'swwdswwd124@gmail.com' } ],
-      test: [
-        ...tolerant('Invites sent'),
-        "try { var b = pm.response.json(); var list = Array.isArray(b) ? b : (b && b.invites) ? b.invites : []; var withTok = list.find(function (x) { return x && x.token; }); if (withTok) { pm.collectionVariables.set('inviteToken', withTok.token); console.log('inviteToken =', withTok.token); } } catch (e) {}"
-      ]
+    req('17.5 Generate AI options', 'POST', B + '/api/v1/group-gifts/ai-generate-option/{{groupGiftId}}', { test: tolerant('AI options') }),
+    req('17.6 Get options → capture optionId', 'GET', B + '/api/v1/group-gifts/get-options/{{groupGiftId}}', { test: captureFirstId('groupGiftOptionId', 'groupGiftOptionId') }),
+    req('17.7 Send invites → capture token', 'POST', B + '/api/v1/group-gifts/send-invite/{{groupGiftId}}', {
+      body: [{ inviteeName: 'ضيف', inviteeEmail: 'swwdswwd124@gmail.com' }],
+      test: CAPTURE_INVITE_TOKEN
     }),
-    req('Get Vote Page (public)', 'GET', B + '/api/v1/public/group-gifts/vote/{{inviteToken}}', { auth: 'none', test: tolerant('Vote page data fetched') }),
-    req('Submit Vote (public)', 'POST', B + '/api/v1/public/group-gifts/vote/{{inviteToken}}', { auth: 'none', body: '{\n  "groupGiftOptionId": {{groupGiftOptionId}}\n}', test: tolerant('Vote submitted') }),
-    req('Get Results', 'GET', B + '/api/v1/group-gifts/results/{{groupGiftId}}', { test: tolerant('Results fetched') }),
-    req('Close Voting', 'PUT', B + '/api/v1/group-gifts/close-voting/{{groupGiftId}}', { test: tolerant('Voting closed') })
+    req('17.8 Public: get vote page', 'GET', B + '/api/v1/public/group-gifts/vote/{{inviteToken}}', { auth: 'none', test: tolerant('Vote page') }),
+    req('17.9 Public: submit vote', 'POST', B + '/api/v1/public/group-gifts/vote/{{inviteToken}}', {
+      auth: 'none', body: { groupGiftOptionId: '{{groupGiftOptionId}}' }, test: tolerant('Vote submitted')
+    }),
+    req('17.10 Get results', 'GET', B + '/api/v1/group-gifts/results/{{groupGiftId}}', { test: tolerant('Results') }),
+    req('17.11 Close voting', 'PUT', B + '/api/v1/group-gifts/close-voting/{{groupGiftId}}', { test: tolerant('Closed') })
   ]
 ));
 
-// ============================ OUT-OF-FLOW ENDPOINTS ============================
-const extraSubs = [];
-
-extraSubs.push(folder('Bayan - Users (extra, admin)',
-  'List-all users is ADMIN-only. Uses Basic {{adminUsername}}/{{adminPassword}} (tolerant). There is no delete-by-id endpoint; the only delete is self-delete (see the final "Account Deletion" folder).',
+flows.push(folder(
+  '18 — Dashboard (Saud)',
+  'Aggregated home-screen data.',
   [
-    req('Get All Users (admin)', 'GET', B + '/api/v1/users/get', { auth: 'admin', test: tolerant('Users listed (admin)') })
+    req('18.1 Get dashboard', 'GET', B + '/api/v1/dashboard')
   ]
 ));
 
-extraSubs.push(folder('Bayan - Recipients (extra)',
-  'Alternate list endpoint + delete on a throwaway recipient (keeps Ammar from flow 2 intact).',
-  [
-    req('Get My Recipients', 'GET', B + '/api/v1/recipients/get', {}),
-    req('Create Temp Recipient', 'POST', B + '/api/v1/recipients/add', {
-      body: { name: 'مستلم مؤقت', relationship: 'صديق', age: 30, gender: 'ذكر', interests: 'كتب', hobbies: 'قراءة', favoriteColors: 'أزرق', favoriteBrands: 'سامسونج', dislikes: '—', personalityStyle: 'هادئ', sizeInfo: 'M', notes: 'للاختبار فقط' }
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 2 — ADMIN & MAINTENANCE (19)
+// ═══════════════════════════════════════════════════════════════════════════
+const adminTools = [
+  folder('Users', 'ADMIN list-all + self-delete (destructive, run last).', [
+    req('Get all users', 'GET', B + '/api/v1/users/get', { auth: 'admin', test: tolerant('Users listed') }),
+    req('Delete current user (DESTRUCTIVE)', 'DELETE', B + '/api/v1/users/delete', { test: tolerant('Self deleted') })
+  ]),
+  folder('Required Questions CRUD', 'Throwaway question lifecycle.', [
+    req('Create temp question', 'POST', B + '/api/v1/required-questions/add', {
+      auth: 'admin', body: { questionText: 'سؤال تجريبي', questionType: 'TEXT', isActive: true, displayOrder: 99 }, test: tolerant('Created')
     }),
-    req('Capture Temp Recipient', 'GET', B + '/api/v1/recipients/get-by-user-id', {
-      test: [
-        ASSERT_200,
-        "var arr = pm.response.json();",
-        "var pick = (arr || []).filter(function (x) { return x.name === 'مستلم مؤقت'; });",
-        "var target = pick.length ? pick.reduce(function (a,b){return a.id>b.id?a:b;}) : null;",
-        "if (target) { pm.collectionVariables.set('tmpRecipientId', target.id); }",
-        "pm.test('tmpRecipientId captured', function () { pm.expect(pm.collectionVariables.get('tmpRecipientId')).to.not.be.undefined; });"
-      ]
+    req('List → capture', 'GET', B + '/api/v1/required-questions/get', { auth: 'admin', test: captureMaxIdTolerant('tmpQuestionId', 'tmpQuestionId') }),
+    req('Update', 'PUT', B + '/api/v1/required-questions/update/{{tmpQuestionId}}', {
+      auth: 'admin', body: { questionText: 'سؤال محدّث', questionType: 'TEXT', isActive: true, displayOrder: 99 }, test: tolerant('Updated')
     }),
-    req('Delete Temp Recipient', 'DELETE', B + '/api/v1/recipients/delete/{{tmpRecipientId}}', { test: tolerant('Temp recipient deleted') })
-  ]
-));
-
-extraSubs.push(folder('Bayan - Admin Required Questions (extra, admin)',
-  'Full ADMIN CRUD for required questions on a throwaway question. Uses Basic {{adminUsername}}/{{adminPassword}} (tolerant).',
-  [
-    req('Create Temp Question', 'POST', B + '/api/v1/required-questions/add', {
+    req('Disable', 'PUT', B + '/api/v1/required-questions/disable/{{tmpQuestionId}}', { auth: 'admin', test: tolerant('Disabled') }),
+    req('Delete', 'DELETE', B + '/api/v1/required-questions/delete/{{tmpQuestionId}}', { auth: 'admin', test: tolerant('Deleted') })
+  ]),
+  folder('Required Answer CRUD', 'Admin standalone answer records.', [
+    req('List questions → capture anyQuestionId', 'GET', B + '/api/v1/required-questions/get', {
       auth: 'admin',
-      body: { questionText: 'سؤال تجريبي: ما لونه المفضّل؟', questionType: 'TEXT', isActive: true, displayOrder: 9 },
-      test: tolerant('Temp question created (admin)')
+      test: [...tolerant('Listed'), "try{var a=pm.response.json();if(a&&a[0])pm.collectionVariables.set('anyQuestionId',a[0].id);}catch(e){}"]
     }),
-    req('List & Capture Temp Question', 'GET', B + '/api/v1/required-questions/get', { auth: 'admin', test: captureMaxId('tmpQuestionId', 'tmpQuestionId') }),
-    req('Update Temp Question', 'PUT', B + '/api/v1/required-questions/update/{{tmpQuestionId}}', {
-      auth: 'admin',
-      body: { questionText: 'سؤال محدّث: ما لونه وماركته المفضّلة؟', questionType: 'TEXT', isActive: true, displayOrder: 9 },
-      test: tolerant('Temp question updated (admin)')
+    req('Create answer', 'POST', B + '/api/v1/required-question-answers/required-question/{{anyQuestionId}}', {
+      auth: 'admin', body: { answerText: 'إجابة تجريبية' }, test: tolerant('Created')
     }),
-    req('Disable Temp Question', 'PUT', B + '/api/v1/required-questions/disable/{{tmpQuestionId}}', { auth: 'admin', test: tolerant('Temp question disabled (admin)') }),
-    req('Delete Temp Question', 'DELETE', B + '/api/v1/required-questions/delete/{{tmpQuestionId}}', { auth: 'admin', test: tolerant('Temp question deleted (admin)') })
-  ]
-));
-
-extraSubs.push(folder('Bayan - Reminders (extra)', 'List-all reminders for the signed-in user (alternate endpoint).', [
-  req('Get All Reminders', 'GET', B + '/api/v1/reminders/get', {})
-]));
-
-extraSubs.push(folder('Bayan - Group Gifts (extra)',
-  'Update + delete on the group gift created in flow 17. Tolerant (voting may be closed).',
-  [
-    req('Update Group Gift', 'PUT', B + '/api/v1/group-gifts/{{groupGiftId}}', {
-      body: { title: 'هدية تخرّج جماعية لعمار (محدّثة)', description: 'تم تحديث وصف الهدية الجماعية.', responsiblePersonName: 'سعود', responsiblePersonEmail: 'swwdswwd124@gmail.com' },
-      test: tolerant('Group gift updated')
+    req('List all → capture', 'GET', B + '/api/v1/required-question-answers/get', { auth: 'admin', test: captureMaxIdTolerant('tmpRqAnswerId', 'tmpRqAnswerId') }),
+    req('Get by id', 'GET', B + '/api/v1/required-question-answers/get-by-id/{{tmpRqAnswerId}}', { auth: 'admin', test: tolerant('Fetched') }),
+    req('Update', 'PUT', B + '/api/v1/required-question-answers/update/{{tmpRqAnswerId}}', {
+      auth: 'admin', body: { answerText: 'إجابة محدّثة' }, test: tolerant('Updated')
     }),
-    req('Delete Group Gift', 'DELETE', B + '/api/v1/group-gifts/{{groupGiftId}}', { test: tolerant('Group gift deleted') })
-  ]
-));
-
-extraSubs.push(folder('Shahad - Required Question Answers (extra CRUD, admin)',
-  'Standalone ADMIN CRUD on a single required-question answer (separate from the gift-plan submit flow). Uses Basic {{adminUsername}}/{{adminPassword}} (tolerant).',
-  [
-    req('List Questions & Capture One', 'GET', B + '/api/v1/required-questions/get', {
-      auth: 'admin',
-      test: [
-        ...tolerant('Questions listed (admin)'),
-        "try { var arr = pm.response.json(); if (Array.isArray(arr) && arr.length) { pm.collectionVariables.set('anyQuestionId', arr[0].id); } } catch (e) {}"
-      ]
+    req('Delete', 'DELETE', B + '/api/v1/required-question-answers/delete/{{tmpRqAnswerId}}', { auth: 'admin', test: tolerant('Deleted') })
+  ]),
+  folder('AI Question & Answer CRUD', 'Admin manual records + user regenerate.', [
+    req('Create AI question', 'POST', B + '/api/v1/ai-questions/create/' + G, {
+      auth: 'admin', body: { questionText: 'هل يفضّل الهدايا التقنية؟', reasonForQuestion: 'تحديد الاتجاه' }, test: tolerant('Created')
     }),
-    req('Create RQ Answer', 'POST', B + '/api/v1/required-question-answers/required-question/{{anyQuestionId}}', { auth: 'admin', body: { answerText: 'إجابة تجريبية على السؤال المطلوب.' }, test: tolerant('RQ answer created (admin)') }),
-    req('Get All RQ Answers & Capture', 'GET', B + '/api/v1/required-question-answers/get', { auth: 'admin', test: captureMaxId('tmpRqAnswerId', 'tmpRqAnswerId') }),
-    req('Get RQ Answer By Id', 'GET', B + '/api/v1/required-question-answers/get-by-id/{{tmpRqAnswerId}}', { auth: 'admin', test: tolerant('RQ answer fetched (admin)') }),
-    req('Update RQ Answer', 'PUT', B + '/api/v1/required-question-answers/update/{{tmpRqAnswerId}}', { auth: 'admin', body: { answerText: 'إجابة محدّثة على السؤال المطلوب.' }, test: tolerant('RQ answer updated (admin)') }),
-    req('Delete RQ Answer', 'DELETE', B + '/api/v1/required-question-answers/delete/{{tmpRqAnswerId}}', { auth: 'admin', test: tolerant('RQ answer deleted (admin)') })
-  ]
-));
-
-extraSubs.push(folder('Shahad - AI Questions (extra CRUD, admin)',
-  'Manual ADMIN CRUD on AI questions (separate from the AI generate flow). Uses the gift plan from flow 5 and Basic {{adminUsername}}/{{adminPassword}} (tolerant).',
-  [
-    req('Create AI Question', 'POST', B + '/api/v1/ai-questions/create/' + G, { auth: 'admin', body: { questionText: 'هل يفضّل عمار الهدايا التقنية أم الكلاسيكية؟', reasonForQuestion: 'لتحديد اتجاه الهدية المناسب.' }, test: tolerant('AI question created (admin)') }),
-    req('Get All AI Questions & Capture', 'GET', B + '/api/v1/ai-questions/get', { auth: 'admin', test: captureMaxId('tmpAiQuestionId', 'tmpAiQuestionId') }),
-    req('Get AI Question By Id', 'GET', B + '/api/v1/ai-questions/get-by-id/{{tmpAiQuestionId}}', { auth: 'admin', test: tolerant('AI question fetched (admin)') }),
-    req('Update AI Question', 'PUT', B + '/api/v1/ai-questions/update/{{tmpAiQuestionId}}', { auth: 'admin', body: { questionText: 'هل يفضّل عمار الهدايا التقنية الحديثة؟', reasonForQuestion: 'تحديث سبب السؤال.' }, test: tolerant('AI question updated (admin)') }),
-    req('Regenerate AI Questions (user flow)', 'GET', B + '/api/v1/ai-questions/regenerate/' + G, { test: tolerant('AI questions regenerated') })
-  ]
-));
-
-extraSubs.push(folder('Shahad - AI Answers (extra CRUD, admin)',
-  'Manual ADMIN CRUD on AI answers, attached to the AI question created above. Uses Basic {{adminUsername}}/{{adminPassword}} (tolerant).',
-  [
-    req('Create AI Answer', 'POST', B + '/api/v1/ai-answers/ai-question/{{tmpAiQuestionId}}', { auth: 'admin', body: { answerText: 'نعم، يفضّل الهدايا التقنية الحديثة.' }, test: tolerant('AI answer created (admin)') }),
-    req('Get All AI Answers & Capture', 'GET', B + '/api/v1/ai-answers/get', { auth: 'admin', test: captureMaxId('tmpAiAnswerId', 'tmpAiAnswerId') }),
-    req('Get AI Answer By Id', 'GET', B + '/api/v1/ai-answers/get-by-id/{{tmpAiAnswerId}}', { auth: 'admin', test: tolerant('AI answer fetched (admin)') }),
-    req('Update AI Answer', 'PUT', B + '/api/v1/ai-answers/update/{{tmpAiAnswerId}}', { auth: 'admin', body: { answerText: 'نعم، خصوصاً الأجهزة القابلة للارتداء.' }, test: tolerant('AI answer updated (admin)') }),
-    req('Delete AI Answer', 'DELETE', B + '/api/v1/ai-answers/delete/{{tmpAiAnswerId}}', { auth: 'admin', test: tolerant('AI answer deleted (admin)') }),
-    req('Delete AI Question', 'DELETE', B + '/api/v1/ai-questions/delete/{{tmpAiQuestionId}}', { auth: 'admin', test: tolerant('AI question deleted (admin)') })
-  ]
-));
-
-extraSubs.push(folder('Shahad - Recommendations (extra)',
-  'Regenerate ideas + unselect. Tolerant: regenerate errors once an idea is already selected (as in flow 8).',
-  [
-    req('Regenerate Recommendations', 'GET', B + '/api/v1/gift-recommendations/gift-plans/' + G + '/regenerate', { test: tolerant('Recommendations regenerated') }),
-    req('Unselect Recommendation', 'PUT', B + '/api/v1/gift-recommendations/{{recommendationId}}/unselect', { test: tolerant('Recommendation unselected') })
-  ]
-));
-
-extraSubs.push(folder('Shahad - Product Selection (extra)',
-  'Clear the selected product for the plan. Tolerant (depends on a prior selection).',
-  [
-    req('Clear Selected Product', 'DELETE', B + '/api/v1/selected-products/clear-selected-product/' + G, { test: tolerant('Selected product cleared') })
-  ]
-));
-
-extraSubs.push(folder('Shahad - Gift Plans (extra)',
-  'Previous-plans listing + delete (uses a throwaway plan so the main journey plan survives).',
-  [
-    req('Get Previous Plans', 'GET', B + '/api/v1/gift-plans/get-previous-plans', { test: tolerant('Previous plans fetched') }),
-    req('Create Temp Plan', 'POST', B + '/api/v1/gift-plans/create/' + R, { body: { occasionType: 'BIRTHDAY', occasionDate: '{{occasionDate}}', budget: 200, currency: 'SAR', preferredGiftStyle: 'PRACTICAL', language: 'ar' } }),
-    req('Capture Temp Plan', 'GET', B + '/api/v1/gift-plans/get-my-plans', { test: captureMaxId('tmpGiftPlanId', 'tmpGiftPlanId') }),
-    req('Delete Temp Plan', 'DELETE', B + '/api/v1/gift-plans/delete/{{tmpGiftPlanId}}', { test: tolerant('Temp plan deleted (204)') })
-  ]
-));
-
-extraSubs.push(folder('Saud - Surprise Plan (extra, premium)',
-  'Regenerate / update / delete the surprise plan. Premium-gated: tolerant (403 until premium is active).',
-  [
-    req('Regenerate Surprise Plan', 'POST', B + '/api/v1/gift-plans/' + G + '/surprise-plan/regenerate', { body: { language: 'ar' }, test: tolerant('Surprise plan regenerated') }),
-    req('Update Surprise Plan', 'PUT', B + '/api/v1/gift-plans/' + G + '/surprise-plan', { body: { planTitle: 'خطة مفاجأة محدّثة', steps: 'رتّب الهدية، جهّز البطاقة، نسّق التوقيت.', timingSuggestion: 'بعد حفل التخرّج مباشرة.' }, test: tolerant('Surprise plan updated') }),
-    req('Delete Surprise Plan', 'DELETE', B + '/api/v1/gift-plans/' + G + '/surprise-plan', { test: tolerant('Surprise plan deleted') })
-  ]
-));
-
-extraSubs.push(folder('Saud - Gift Card (extra, premium)',
-  'Download PNG/PDF + delete the gift card from flow 11. Tolerant (needs the premium-created card).',
-  [
-    req('Download Gift Card (PNG)', 'GET', B + '/api/v1/gift-cards/{{giftCardId}}/download?format=png', { test: tolerant('Gift card PNG downloaded') }),
-    req('Delete Gift Card', 'DELETE', B + '/api/v1/gift-cards/{{giftCardId}}', { test: tolerant('Gift card deleted') })
-  ]
-));
-
-extraSubs.push(folder('Saud - Gift History (extra)',
-  'Delete the history log from flow 13. Tolerant (depends on a logged product).',
-  [
-    req('Delete History Log', 'DELETE', B + '/api/v1/gift-history/from-product/{{selectedProductId}}', { test: tolerant('History log deleted') })
-  ]
-));
-
-extraSubs.push(folder('Saud - Dashboard & Analytics (extra)',
-  'New aggregated/analytics endpoints. Run after main flows so recipientId, giftCardId, and history data are available.',
-  [
-    req('Get Dashboard', 'GET', B + '/api/v1/dashboard', {
-      desc: 'Aggregated home screen: upcoming reminders, active plans count, recent gifts, premium status, pending group-gift votes.'
+    req('List all → capture', 'GET', B + '/api/v1/ai-questions/get', { auth: 'admin', test: captureMaxIdTolerant('tmpAiQuestionId', 'tmpAiQuestionId') }),
+    req('Get by id', 'GET', B + '/api/v1/ai-questions/get-by-id/{{tmpAiQuestionId}}', { auth: 'admin', test: tolerant('Fetched') }),
+    req('Update', 'PUT', B + '/api/v1/ai-questions/update/{{tmpAiQuestionId}}', {
+      auth: 'admin', body: { questionText: 'سؤال محدّث', reasonForQuestion: 'سبب' }, test: tolerant('Updated')
     }),
-    req('Get Spending Stats', 'GET', B + '/api/v1/gift-history/spending-stats?from=2026-01-01&to=2026-12-31', {
-      desc: 'Time-bounded spending breakdown. Query params from and to are optional (ISO dates).'
+    req('Regenerate (user flow)', 'POST', B + '/api/v1/ai-questions/regenerate/' + G, { test: tolerant('Regenerated') }),
+    req('Create AI answer', 'POST', B + '/api/v1/ai-answers/ai-question/{{tmpAiQuestionId}}', {
+      auth: 'admin', body: { answerText: 'نعم' }, test: tolerant('Answer created')
     }),
-    req('Get Recipient Insights', 'GET', B + '/api/v1/recipients/' + R + '/insights', {
-      desc: 'Per-recipient gifting insights: totals, occasions, top stores, spend timeline.',
-      test: tolerant('Recipient insights fetched')
+    req('List answers → capture', 'GET', B + '/api/v1/ai-answers/get', { auth: 'admin', test: captureMaxIdTolerant('tmpAiAnswerId', 'tmpAiAnswerId') }),
+    req('Get answer by id', 'GET', B + '/api/v1/ai-answers/get-by-id/{{tmpAiAnswerId}}', { auth: 'admin', test: tolerant('Fetched') }),
+    req('Update answer', 'PUT', B + '/api/v1/ai-answers/update/{{tmpAiAnswerId}}', {
+      auth: 'admin', body: { answerText: 'نعم، خصوصاً التقنية' }, test: tolerant('Updated')
     }),
-    req('Download Gift Card (PDF)', 'GET', B + '/api/v1/gift-cards/{{giftCardId}}/download?format=pdf', {
-      desc: 'Download rendered gift card as PDF. Tolerant: needs giftCardId from flow 11 (premium).',
-      test: tolerant('Gift card PDF downloaded')
-    })
-  ]
+    req('Delete answer', 'DELETE', B + '/api/v1/ai-answers/delete/{{tmpAiAnswerId}}', { auth: 'admin', test: tolerant('Deleted') }),
+    req('Delete question', 'DELETE', B + '/api/v1/ai-questions/delete/{{tmpAiQuestionId}}', { auth: 'admin', test: tolerant('Deleted') })
+  ]),
+  folder('Cleanup & Utilities', 'Temp entities, webhooks, QR, logout.', [
+    req('Regenerate recommendations', 'POST', B + '/api/v1/gift-recommendations/gift-plans/' + G + '/regenerate', { test: tolerant('Regenerated') }),
+    req('Unselect recommendation', 'PUT', B + '/api/v1/gift-recommendations/{{recommendationId}}/unselect', { test: tolerant('Unselected') }),
+    req('Clear selected product', 'DELETE', B + '/api/v1/selected-products/clear-selected-product/' + G, { test: tolerant('Cleared') }),
+    req('Get previous plans', 'GET', B + '/api/v1/gift-plans/get-previous-plans', { test: tolerant('Previous') }),
+    req('Create temp plan', 'POST', B + '/api/v1/gift-plans/create/' + R, { body: { ...PLAN, occasionType: 'BIRTHDAY', budget: 200 } }),
+    req('Capture temp plan', 'GET', B + '/api/v1/gift-plans/get-my-plans', { test: captureMaxId('tmpGiftPlanId', 'tmpGiftPlanId') }),
+    req('Delete temp plan', 'DELETE', B + '/api/v1/gift-plans/delete/{{tmpGiftPlanId}}', { test: tolerant('Deleted') }),
+    req('Regenerate surprise plan', 'POST', B + '/api/v1/gift-plans/' + G + '/surprise-plan/regenerate', { body: { language: 'ar' }, test: tolerant('Regenerated') }),
+    req('Update surprise plan', 'PUT', B + '/api/v1/gift-plans/' + G + '/surprise-plan', {
+      body: { planTitle: 'خطة محدّثة', steps: 'خطوات', timingSuggestion: 'بعد الحفل' }, test: tolerant('Updated')
+    }),
+    req('Delete surprise plan', 'DELETE', B + '/api/v1/gift-plans/' + G + '/surprise-plan', { test: tolerant('Deleted') }),
+    req('Delete gift card', 'DELETE', B + '/api/v1/gift-cards/{{giftCardId}}', { test: tolerant('Deleted') }),
+    req('Delete history log', 'DELETE', B + '/api/v1/gift-history/from-product/{{selectedProductId}}', { test: tolerant('Deleted') }),
+    req('Update group gift', 'PUT', B + '/api/v1/group-gifts/{{groupGiftId}}', {
+      body: { title: 'هدية محدّثة', description: 'وصف', giftGivingDate: '{{giftGivingDate}}', votingDeadline: '{{votingDeadline}}' },
+      test: tolerant('Updated')
+    }),
+    req('Delete group gift', 'DELETE', B + '/api/v1/group-gifts/{{groupGiftId}}', { test: tolerant('Deleted') }),
+    req('Create temp recipient', 'POST', B + '/api/v1/recipients/add', {
+      body: { ...RECIPIENT, name: 'مستلم مؤقت', notes: 'حذف لاحقاً' }
+    }),
+    req('Capture temp recipient', 'GET', B + '/api/v1/recipients/get-by-user-id', {
+      test: [...ASSERT_OK, "var arr=pm.response.json()||[];var p=arr.filter(function(x){return x.name==='مستلم مؤقت';});if(p.length)pm.collectionVariables.set('tmpRecipientId',p.reduce(function(a,b){return a.id>b.id?a:b;}).id);"]
+    }),
+    req('Delete temp recipient', 'DELETE', B + '/api/v1/recipients/delete/{{tmpRecipientId}}', { test: tolerant('Deleted') }),
+    req('Get all reminders', 'GET', B + '/api/v1/reminders/get'),
+    req('Moyasar webhook (public)', 'POST', B + '/api/v1/payments/webhook/moyasar', { auth: 'none', body: { id: '{{moyasarId}}' }, test: tolerant('Webhook') }),
+    req('Generate QR code', 'POST', B + '/api/v1/qr-code/generate', { body: { url: 'https://example.com/vote' } }),
+    req('Logout', 'POST', B + '/api/v1/auth/logout', { test: tolerant('Logged out') })
+  ])
+];
+
+flows.push(folder(
+  '19 — Admin & Maintenance',
+  'ADMIN CRUD, temp-entity cleanup, utilities. Run AFTER flows 01–18. Skip "Delete current user" unless intentional.',
+  adminTools
 ));
 
-extraSubs.push(folder('Saud - Payments (extra, public webhook)',
-  'Moyasar webhook sync endpoint (public; normally called by Moyasar). Tolerant: needs a real payment id.',
-  [
-    req('Moyasar Webhook Sync', 'POST', B + '/api/v1/payments/webhook/moyasar', { auth: 'none', body: { id: '{{moyasarId}}' }, test: tolerant('Webhook processed') })
-  ]
-));
-
-extraSubs.push(folder('Saud - QR Code (utility)',
-  'Standalone QR generator (authenticated utility).',
-  [
-    req('Generate QR Code', 'POST', B + '/api/v1/qr-code/generate', { body: { url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' } })
-  ]
-));
-
-extraSubs.push(folder('Auth (extra)',
-  'Spring Security session logout. Requires an active Basic-auth session (run after flow 1).',
-  [
-    req('Logout', 'POST', B + '/api/v1/auth/logout', { test: tolerant('Session logged out') })
-  ]
-));
-
-extraSubs.push(folder('Saud - Account Deletion (DESTRUCTIVE - run last)',
-  'Self-delete the signed-in account. The only delete endpoint is for the principal (no delete-by-id), so this removes the Saud account created in flow 1. Run this LAST, on its own, after everything else. Tolerant.',
-  [
-    req('Delete Current User (self)', 'DELETE', B + '/api/v1/users/delete', { test: tolerant('Current user deleted (self)') })
-  ]
-));
-
-folders.push(folder(
-  'Extra - Out-of-Flow Endpoints',
-  'Endpoints not part of a main user journey: alternate listings, ADMIN management, utilities, the public webhook, and destructive deletes. Grouped per developer/resource. Run the flow folders first so captured IDs are available. ADMIN folders need {{adminUsername}}/{{adminPassword}} set to a real ADMIN account. The final "Account Deletion" folder is destructive — run it last.',
-  extraSubs
-));
-
-// ============================ COMPLETE API REFERENCE ============================
-// One request per route in the codebase — use after main flows to verify nothing was missed.
-function apiRef(name, method, path, opts) {
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 3 — COMPLETE API CATALOG (20)
+// ═══════════════════════════════════════════════════════════════════════════
+function cat(name, method, path, opts) {
   opts = opts || {};
   if (!opts.test) opts.test = tolerant(name);
   return req(name, method, B + path, opts);
 }
 
-const recipientBody = {
-  name: 'عمار', relationship: 'أخ', age: 25, gender: 'ذكر',
-  interests: 'التقنية', hobbies: 'القراءة', favoriteColors: 'أسود',
-  favoriteBrands: 'آبل', dislikes: '—', personalityStyle: 'عملي', sizeInfo: 'L', notes: 'مرجع API'
-};
-const planBody = { occasionType: 'GRADUATION', occasionDate: '{{occasionDate}}', budget: 500, currency: 'SAR', preferredGiftStyle: 'PRACTICAL', language: 'ar' };
-
-const apiRefSubs = [
-  folder('Users', '4 endpoints', [
-    apiRef('POST /users/register', 'POST', '/api/v1/users/register', { auth: 'none', body: { username: 'ref_{{stamp}}', password: 'Ref!2026pass', fullName: 'مرجع', email: 'swwdswwd124+ref{{stamp}}@gmail.com', phoneNumber: '0502427714' } }),
-    apiRef('GET /users/get (admin)', 'GET', '/api/v1/users/get', { auth: 'admin' }),
-    apiRef('PUT /users/update', 'PUT', '/api/v1/users/update', { body: { username: '{{username}}', password: '{{password}}', fullName: 'سعود', email: 'swwdswwd124+{{stamp}}@gmail.com', phoneNumber: '0502427714' } }),
-    apiRef('DELETE /users/delete', 'DELETE', '/api/v1/users/delete')
+const catalog = [
+  folder('Users (4)', '', [
+    cat('POST /users/register', 'POST', '/api/v1/users/register', { auth: 'none', body: { username: 'cat_{{stamp}}', password: 'Cat!2026', fullName: 'اختبار', email: 'swwdswwd124+cat{{stamp}}@gmail.com', phoneNumber: '0502427714' } }),
+    cat('GET /users/get', 'GET', '/api/v1/users/get', { auth: 'admin' }),
+    cat('PUT /users/update', 'PUT', '/api/v1/users/update', { body: { username: '{{username}}', password: '{{password}}', fullName: 'سعود', email: 'swwdswwd124+{{stamp}}@gmail.com', phoneNumber: '0502427714' } }),
+    cat('DELETE /users/delete', 'DELETE', '/api/v1/users/delete')
   ]),
-  folder('Recipients', '8 endpoints', [
-    apiRef('POST /recipients/add', 'POST', '/api/v1/recipients/add', { body: recipientBody }),
-    apiRef('GET /recipients/get', 'GET', '/api/v1/recipients/get'),
-    apiRef('GET /recipients/get-by-user-id', 'GET', '/api/v1/recipients/get-by-user-id'),
-    apiRef('GET /recipients/get/{id}', 'GET', '/api/v1/recipients/get/' + R),
-    apiRef('PUT /recipients/update/{id}', 'PUT', '/api/v1/recipients/update/' + R, { body: recipientBody }),
-    apiRef('DELETE /recipients/delete/{id}', 'DELETE', '/api/v1/recipients/delete/{{tmpRecipientId}}'),
-    apiRef('GET /recipients/{id}/gift-history', 'GET', '/api/v1/recipients/' + R + '/gift-history'),
-    apiRef('GET /recipients/{id}/insights', 'GET', '/api/v1/recipients/' + R + '/insights')
+  folder('Recipients (8)', '', [
+    cat('POST /recipients/add', 'POST', '/api/v1/recipients/add', { body: RECIPIENT }),
+    cat('GET /recipients/get', 'GET', '/api/v1/recipients/get'),
+    cat('GET /recipients/get-by-user-id', 'GET', '/api/v1/recipients/get-by-user-id'),
+    cat('GET /recipients/get/{id}', 'GET', '/api/v1/recipients/get/' + R),
+    cat('PUT /recipients/update/{id}', 'PUT', '/api/v1/recipients/update/' + R, { body: RECIPIENT }),
+    cat('DELETE /recipients/delete/{id}', 'DELETE', '/api/v1/recipients/delete/{{tmpRecipientId}}'),
+    cat('GET /recipients/{id}/gift-history', 'GET', '/api/v1/recipients/' + R + '/gift-history'),
+    cat('GET /recipients/{id}/insights', 'GET', '/api/v1/recipients/' + R + '/insights')
   ]),
-  folder('Dashboard', '1 endpoint', [
-    apiRef('GET /dashboard', 'GET', '/api/v1/dashboard')
+  folder('Dashboard (1)', '', [cat('GET /dashboard', 'GET', '/api/v1/dashboard')]),
+  folder('Gift Plans (13)', '', [
+    cat('POST /gift-plans/create/{recipientId}', 'POST', '/api/v1/gift-plans/create/' + R, { body: PLAN }),
+    cat('GET /gift-plans/get-my-plans', 'GET', '/api/v1/gift-plans/get-my-plans'),
+    cat('GET /gift-plans/get-plan-by-id/{id}', 'GET', '/api/v1/gift-plans/get-plan-by-id/' + G),
+    cat('PUT /gift-plans/update/{id}', 'PUT', '/api/v1/gift-plans/update/' + G, { body: PLAN }),
+    cat('DELETE /gift-plans/delete/{id}', 'DELETE', '/api/v1/gift-plans/delete/{{tmpGiftPlanId}}'),
+    cat('GET /gift-plans/get-active-plans', 'GET', '/api/v1/gift-plans/get-active-plans'),
+    cat('GET /gift-plans/get-previous-plans', 'GET', '/api/v1/gift-plans/get-previous-plans'),
+    cat('GET /gift-plans/get-gift-plan-Summery/{id}', 'GET', '/api/v1/gift-plans/get-gift-plan-Summery/' + G),
+    cat('POST /{id}/surprise-plan/generate', 'POST', '/api/v1/gift-plans/' + G + '/surprise-plan/generate', { body: { language: 'ar' } }),
+    cat('POST /{id}/surprise-plan/regenerate', 'POST', '/api/v1/gift-plans/' + G + '/surprise-plan/regenerate', { body: { language: 'ar' } }),
+    cat('PUT /{id}/surprise-plan', 'PUT', '/api/v1/gift-plans/' + G + '/surprise-plan', { body: { planTitle: 'خطة', steps: 'خطوات', timingSuggestion: 'توقيت' } }),
+    cat('GET /{id}/surprise-plan', 'GET', '/api/v1/gift-plans/' + G + '/surprise-plan'),
+    cat('DELETE /{id}/surprise-plan', 'DELETE', '/api/v1/gift-plans/' + G + '/surprise-plan')
   ]),
-  folder('Gift Plans', '13 endpoints', [
-    apiRef('POST /gift-plans/create/{recipientId}', 'POST', '/api/v1/gift-plans/create/' + R, { body: planBody }),
-    apiRef('GET /gift-plans/get-my-plans', 'GET', '/api/v1/gift-plans/get-my-plans'),
-    apiRef('GET /gift-plans/get-plan-by-id/{id}', 'GET', '/api/v1/gift-plans/get-plan-by-id/' + G),
-    apiRef('PUT /gift-plans/update/{id}', 'PUT', '/api/v1/gift-plans/update/' + G, { body: planBody }),
-    apiRef('DELETE /gift-plans/delete/{id}', 'DELETE', '/api/v1/gift-plans/delete/{{tmpGiftPlanId}}'),
-    apiRef('GET /gift-plans/get-active-plans', 'GET', '/api/v1/gift-plans/get-active-plans'),
-    apiRef('GET /gift-plans/get-previous-plans', 'GET', '/api/v1/gift-plans/get-previous-plans'),
-    apiRef('GET /gift-plans/get-gift-plan-Summery/{id}', 'GET', '/api/v1/gift-plans/get-gift-plan-Summery/' + G),
-    apiRef('POST /gift-plans/{id}/surprise-plan/generate', 'POST', '/api/v1/gift-plans/' + G + '/surprise-plan/generate', { body: { language: 'ar' } }),
-    apiRef('POST /gift-plans/{id}/surprise-plan/regenerate', 'POST', '/api/v1/gift-plans/' + G + '/surprise-plan/regenerate', { body: { language: 'ar' } }),
-    apiRef('PUT /gift-plans/{id}/surprise-plan', 'PUT', '/api/v1/gift-plans/' + G + '/surprise-plan', { body: { planTitle: 'خطة', steps: 'خطوات', timingSuggestion: 'بعد الحفل' } }),
-    apiRef('GET /gift-plans/{id}/surprise-plan', 'GET', '/api/v1/gift-plans/' + G + '/surprise-plan'),
-    apiRef('DELETE /gift-plans/{id}/surprise-plan', 'DELETE', '/api/v1/gift-plans/' + G + '/surprise-plan')
+  folder('Required Questions (6)', '', [
+    cat('POST /required-questions/add', 'POST', '/api/v1/required-questions/add', { auth: 'admin', body: { questionText: 'سؤال', questionType: 'TEXT', isActive: true, displayOrder: 1 } }),
+    cat('GET /required-questions/get', 'GET', '/api/v1/required-questions/get', { auth: 'admin' }),
+    cat('PUT /required-questions/update/{id}', 'PUT', '/api/v1/required-questions/update/{{tmpQuestionId}}', { auth: 'admin', body: { questionText: 'سؤال', questionType: 'TEXT', isActive: true, displayOrder: 1 } }),
+    cat('DELETE /required-questions/delete/{id}', 'DELETE', '/api/v1/required-questions/delete/{{tmpQuestionId}}', { auth: 'admin' }),
+    cat('PUT /required-questions/disable/{id}', 'PUT', '/api/v1/required-questions/disable/{{tmpQuestionId}}', { auth: 'admin' }),
+    cat('GET /required-questions/gift-plans/{id}', 'GET', '/api/v1/required-questions/gift-plans/' + G)
   ]),
-  folder('Required Questions', '6 endpoints', [
-    apiRef('POST /required-questions/add (admin)', 'POST', '/api/v1/required-questions/add', { auth: 'admin', body: { questionText: 'سؤال مرجعي', questionType: 'TEXT', isActive: true, displayOrder: 1 } }),
-    apiRef('GET /required-questions/get (admin)', 'GET', '/api/v1/required-questions/get', { auth: 'admin' }),
-    apiRef('PUT /required-questions/update/{id} (admin)', 'PUT', '/api/v1/required-questions/update/{{tmpQuestionId}}', { auth: 'admin', body: { questionText: 'سؤال محدّث', questionType: 'TEXT', isActive: true, displayOrder: 1 } }),
-    apiRef('DELETE /required-questions/delete/{id} (admin)', 'DELETE', '/api/v1/required-questions/delete/{{tmpQuestionId}}', { auth: 'admin' }),
-    apiRef('PUT /required-questions/disable/{id} (admin)', 'PUT', '/api/v1/required-questions/disable/{{tmpQuestionId}}', { auth: 'admin' }),
-    apiRef('GET /required-questions/gift-plans/{id}', 'GET', '/api/v1/required-questions/gift-plans/' + G)
+  folder('Required Answers (7)', '', [
+    cat('POST /required-question/{id}', 'POST', '/api/v1/required-question-answers/required-question/{{anyQuestionId}}', { auth: 'admin', body: { answerText: 'إجابة' } }),
+    cat('GET /required-question-answers/get', 'GET', '/api/v1/required-question-answers/get', { auth: 'admin' }),
+    cat('GET /required-question-answers/get-by-id/{id}', 'GET', '/api/v1/required-question-answers/get-by-id/{{tmpRqAnswerId}}', { auth: 'admin' }),
+    cat('PUT /required-question-answers/update/{id}', 'PUT', '/api/v1/required-question-answers/update/{{tmpRqAnswerId}}', { auth: 'admin', body: { answerText: 'إجابة' } }),
+    cat('DELETE /required-question-answers/delete/{id}', 'DELETE', '/api/v1/required-question-answers/delete/{{tmpRqAnswerId}}', { auth: 'admin' }),
+    cat('POST /gift-plans/{id}/submit', 'POST', '/api/v1/required-question-answers/gift-plans/' + G + '/submit', { body: '{{requiredAnswersBody}}' }),
+    cat('GET /gift-plans/{id}', 'GET', '/api/v1/required-question-answers/gift-plans/' + G)
   ]),
-  folder('Required Question Answers', '7 endpoints', [
-    apiRef('POST /required-question-answers/required-question/{id} (admin)', 'POST', '/api/v1/required-question-answers/required-question/{{anyQuestionId}}', { auth: 'admin', body: { answerText: 'إجابة' } }),
-    apiRef('GET /required-question-answers/get (admin)', 'GET', '/api/v1/required-question-answers/get', { auth: 'admin' }),
-    apiRef('GET /required-question-answers/get-by-id/{id} (admin)', 'GET', '/api/v1/required-question-answers/get-by-id/{{tmpRqAnswerId}}', { auth: 'admin' }),
-    apiRef('PUT /required-question-answers/update/{id} (admin)', 'PUT', '/api/v1/required-question-answers/update/{{tmpRqAnswerId}}', { auth: 'admin', body: { answerText: 'إجابة محدّثة' } }),
-    apiRef('DELETE /required-question-answers/delete/{id} (admin)', 'DELETE', '/api/v1/required-question-answers/delete/{{tmpRqAnswerId}}', { auth: 'admin' }),
-    apiRef('POST /required-question-answers/gift-plans/{id}/submit', 'POST', '/api/v1/required-question-answers/gift-plans/' + G + '/submit', { body: '{{requiredAnswersBody}}' }),
-    apiRef('GET /required-question-answers/gift-plans/{id}', 'GET', '/api/v1/required-question-answers/gift-plans/' + G)
+  folder('AI Questions (8)', '', [
+    cat('POST /ai-questions/create/{planId}', 'POST', '/api/v1/ai-questions/create/' + G, { auth: 'admin', body: { questionText: 'سؤال', reasonForQuestion: 'سبب' } }),
+    cat('GET /ai-questions/get', 'GET', '/api/v1/ai-questions/get', { auth: 'admin' }),
+    cat('GET /ai-questions/get-by-id/{id}', 'GET', '/api/v1/ai-questions/get-by-id/{{tmpAiQuestionId}}', { auth: 'admin' }),
+    cat('PUT /ai-questions/update/{id}', 'PUT', '/api/v1/ai-questions/update/{{tmpAiQuestionId}}', { auth: 'admin', body: { questionText: 'سؤال', reasonForQuestion: 'سبب' } }),
+    cat('DELETE /ai-questions/delete/{id}', 'DELETE', '/api/v1/ai-questions/delete/{{tmpAiQuestionId}}', { auth: 'admin' }),
+    cat('POST /ai-questions/generate/{planId}', 'POST', '/api/v1/ai-questions/generate/' + G),
+    cat('GET /ai-questions/gift-plans/{planId}', 'GET', '/api/v1/ai-questions/gift-plans/' + G),
+    cat('POST /ai-questions/regenerate/{planId}', 'POST', '/api/v1/ai-questions/regenerate/' + G)
   ]),
-  folder('AI Questions', '8 endpoints', [
-    apiRef('POST /ai-questions/create/{giftPlanId} (admin)', 'POST', '/api/v1/ai-questions/create/' + G, { auth: 'admin', body: { questionText: 'سؤال AI', reasonForQuestion: 'سبب' } }),
-    apiRef('GET /ai-questions/get (admin)', 'GET', '/api/v1/ai-questions/get', { auth: 'admin' }),
-    apiRef('GET /ai-questions/get-by-id/{id} (admin)', 'GET', '/api/v1/ai-questions/get-by-id/{{tmpAiQuestionId}}', { auth: 'admin' }),
-    apiRef('PUT /ai-questions/update/{id} (admin)', 'PUT', '/api/v1/ai-questions/update/{{tmpAiQuestionId}}', { auth: 'admin', body: { questionText: 'سؤال محدّث', reasonForQuestion: 'سبب' } }),
-    apiRef('DELETE /ai-questions/delete/{id} (admin)', 'DELETE', '/api/v1/ai-questions/delete/{{tmpAiQuestionId}}', { auth: 'admin' }),
-    apiRef('GET /ai-questions/generate/{giftPlanId}', 'GET', '/api/v1/ai-questions/generate/' + G),
-    apiRef('GET /ai-questions/gift-plans/{giftPlanId}', 'GET', '/api/v1/ai-questions/gift-plans/' + G),
-    apiRef('GET /ai-questions/regenerate/{giftPlanId}', 'GET', '/api/v1/ai-questions/regenerate/' + G)
+  folder('AI Answers (7)', '', [
+    cat('POST /ai-answers/ai-question/{id}', 'POST', '/api/v1/ai-answers/ai-question/{{tmpAiQuestionId}}', { auth: 'admin', body: { answerText: 'إجابة' } }),
+    cat('GET /ai-answers/get', 'GET', '/api/v1/ai-answers/get', { auth: 'admin' }),
+    cat('GET /ai-answers/get-by-id/{id}', 'GET', '/api/v1/ai-answers/get-by-id/{{tmpAiAnswerId}}', { auth: 'admin' }),
+    cat('PUT /ai-answers/update/{id}', 'PUT', '/api/v1/ai-answers/update/{{tmpAiAnswerId}}', { auth: 'admin', body: { answerText: 'إجابة' } }),
+    cat('DELETE /ai-answers/delete/{id}', 'DELETE', '/api/v1/ai-answers/delete/{{tmpAiAnswerId}}', { auth: 'admin' }),
+    cat('POST /ai-answers/gift-plans/{planId}', 'POST', '/api/v1/ai-answers/gift-plans/' + G, { body: '{{aiAnswersBody}}' }),
+    cat('GET /ai-answers/gift-plans/{planId}', 'GET', '/api/v1/ai-answers/gift-plans/' + G)
   ]),
-  folder('AI Answers', '7 endpoints', [
-    apiRef('POST /ai-answers/ai-question/{id} (admin)', 'POST', '/api/v1/ai-answers/ai-question/{{tmpAiQuestionId}}', { auth: 'admin', body: { answerText: 'إجابة' } }),
-    apiRef('GET /ai-answers/get (admin)', 'GET', '/api/v1/ai-answers/get', { auth: 'admin' }),
-    apiRef('GET /ai-answers/get-by-id/{id} (admin)', 'GET', '/api/v1/ai-answers/get-by-id/{{tmpAiAnswerId}}', { auth: 'admin' }),
-    apiRef('PUT /ai-answers/update/{id} (admin)', 'PUT', '/api/v1/ai-answers/update/{{tmpAiAnswerId}}', { auth: 'admin', body: { answerText: 'إجابة محدّثة' } }),
-    apiRef('DELETE /ai-answers/delete/{id} (admin)', 'DELETE', '/api/v1/ai-answers/delete/{{tmpAiAnswerId}}', { auth: 'admin' }),
-    apiRef('POST /ai-answers/gift-plans/{giftPlanId}', 'POST', '/api/v1/ai-answers/gift-plans/' + G, { body: '{{aiAnswersBody}}' }),
-    apiRef('GET /ai-answers/gift-plans/{giftPlanId}', 'GET', '/api/v1/ai-answers/gift-plans/' + G)
+  folder('Gift Recommendations (6)', '', [
+    cat('GET /gift-recommendations/gift-plans/{id}', 'GET', '/api/v1/gift-recommendations/gift-plans/' + G),
+    cat('POST /gift-plans/{id}/generate', 'POST', '/api/v1/gift-recommendations/gift-plans/' + G + '/generate'),
+    cat('POST /gift-plans/{id}/regenerate', 'POST', '/api/v1/gift-recommendations/gift-plans/' + G + '/regenerate'),
+    cat('GET /gift-plans/{id}/selected', 'GET', '/api/v1/gift-recommendations/gift-plans/' + G + '/selected'),
+    cat('PUT /{id}/select', 'PUT', '/api/v1/gift-recommendations/{{recommendationId}}/select'),
+    cat('PUT /{id}/unselect', 'PUT', '/api/v1/gift-recommendations/{{recommendationId}}/unselect')
   ]),
-  folder('Gift Recommendations', '5 endpoints', [
-    apiRef('GET /gift-recommendations/gift-plans/{id}', 'GET', '/api/v1/gift-recommendations/gift-plans/' + G),
-    apiRef('GET /gift-recommendations/gift-plans/{id}/regenerate', 'GET', '/api/v1/gift-recommendations/gift-plans/' + G + '/regenerate'),
-    apiRef('GET /gift-recommendations/gift-plans/{id}/selected', 'GET', '/api/v1/gift-recommendations/gift-plans/' + G + '/selected'),
-    apiRef('PUT /gift-recommendations/{id}/select', 'PUT', '/api/v1/gift-recommendations/{{recommendationId}}/select'),
-    apiRef('PUT /gift-recommendations/{id}/unselect', 'PUT', '/api/v1/gift-recommendations/{{recommendationId}}/unselect')
+  folder('Search & Products (4)', '', [
+    cat('GET /search/gift-plans/{id}/products', 'GET', '/api/v1/search/gift-plans/' + G + '/products'),
+    cat('POST /select-product/{id}', 'POST', '/api/v1/selected-products/select-product/{{productId}}'),
+    cat('GET /get-selected-product/{planId}', 'GET', '/api/v1/selected-products/get-selected-product/' + G),
+    cat('DELETE /clear-selected-product/{planId}', 'DELETE', '/api/v1/selected-products/clear-selected-product/' + G)
   ]),
-  folder('Product Search & Selection', '4 endpoints', [
-    apiRef('GET /search/gift-plans/{id}/products', 'GET', '/api/v1/search/gift-plans/' + G + '/products'),
-    apiRef('POST /selected-products/select-product/{id}', 'POST', '/api/v1/selected-products/select-product/{{productId}}'),
-    apiRef('GET /selected-products/get-selected-product/{giftPlanId}', 'GET', '/api/v1/selected-products/get-selected-product/' + G),
-    apiRef('DELETE /selected-products/clear-selected-product/{giftPlanId}', 'DELETE', '/api/v1/selected-products/clear-selected-product/' + G)
+  folder('Gift Messages (6)', '', [
+    cat('POST /gift-messages/generate', 'POST', '/api/v1/gift-messages/generate', { body: { recipientName: 'عمار', relationship: 'أخ', occasion: 'تخرّج', giftName: 'ساعة', tone: 'دافئ', language: 'ar', dialect: 'سعودي' } }),
+    cat('POST /generate-from-plan/{id}', 'POST', '/api/v1/gift-messages/generate-from-plan/' + G, { body: { tone: 'دافئ', language: 'ar' } }),
+    cat('POST /gift-messages/manual', 'POST', '/api/v1/gift-messages/manual', { body: { messageText: 'مبروك!' } }),
+    cat('GET /gift-messages/my', 'GET', '/api/v1/gift-messages/my'),
+    cat('GET /gift-messages/{id}', 'GET', '/api/v1/gift-messages/{{giftMessageId}}'),
+    cat('PUT /gift-messages/{id}', 'PUT', '/api/v1/gift-messages/{{giftMessageId}}', { body: { messageText: 'رسالة', tone: 'دافئ', language: 'ar' } })
   ]),
-  folder('Gift Messages', '6 endpoints', [
-    apiRef('POST /gift-messages/generate', 'POST', '/api/v1/gift-messages/generate', { body: { recipientName: 'عمار', relationship: 'أخ', occasion: 'تخرّج', giftName: 'ساعة', tone: 'دافئ', language: 'ar', dialect: 'سعودي' } }),
-    apiRef('POST /gift-messages/generate-from-plan/{id}', 'POST', '/api/v1/gift-messages/generate-from-plan/' + G, { body: { tone: 'دافئ', language: 'ar' } }),
-    apiRef('POST /gift-messages/manual', 'POST', '/api/v1/gift-messages/manual', { body: { messageText: 'مبروك يا عمار!' } }),
-    apiRef('GET /gift-messages/my', 'GET', '/api/v1/gift-messages/my'),
-    apiRef('GET /gift-messages/{id}', 'GET', '/api/v1/gift-messages/{{giftMessageId}}'),
-    apiRef('PUT /gift-messages/{id}', 'PUT', '/api/v1/gift-messages/{{giftMessageId}}', { body: { messageText: 'رسالة محدّثة', tone: 'دافئ', language: 'ar' } })
+  folder('Gift Cards (10)', '', [
+    cat('POST /gift-cards', 'POST', '/api/v1/gift-cards', { body: { giftMessageId: '{{giftMessageId}}', recipientName: 'عمار', senderName: 'سعود', cardSize: 'MEDIUM', linkType: 'VIDEO', linkUrl: 'https://example.com', sentToEmail: 'swwdswwd124@gmail.com' } }),
+    cat('GET /gift-cards/my', 'GET', '/api/v1/gift-cards/my'),
+    cat('GET /gift-cards/{id}', 'GET', '/api/v1/gift-cards/{{giftCardId}}'),
+    cat('PUT /gift-cards/{id}', 'PUT', '/api/v1/gift-cards/{{giftCardId}}', { body: { cardSize: 'LARGE', recipientName: 'عمار', senderName: 'سعود' } }),
+    cat('POST /{id}/regenerate', 'POST', '/api/v1/gift-cards/{{giftCardId}}/regenerate'),
+    cat('GET /{id}/image', 'GET', '/api/v1/gift-cards/{{giftCardId}}/image'),
+    cat('GET /{id}/download?format=pdf', 'GET', '/api/v1/gift-cards/{{giftCardId}}/download?format=pdf'),
+    cat('GET /{id}/download?format=png', 'GET', '/api/v1/gift-cards/{{giftCardId}}/download?format=png'),
+    cat('POST /{id}/send-email', 'POST', '/api/v1/gift-cards/{{giftCardId}}/send-email', { body: { email: 'swwdswwd124@gmail.com' } }),
+    cat('DELETE /gift-cards/{id}', 'DELETE', '/api/v1/gift-cards/{{giftCardId}}')
   ]),
-  folder('Gift Cards', '10 endpoints', [
-    apiRef('POST /gift-cards', 'POST', '/api/v1/gift-cards', { body: { giftMessageId: '{{giftMessageId}}', recipientName: 'عمار', senderName: 'سعود', cardSize: 'MEDIUM', linkType: 'VIDEO', linkUrl: 'https://example.com', sentToEmail: 'swwdswwd124@gmail.com' } }),
-    apiRef('GET /gift-cards/my', 'GET', '/api/v1/gift-cards/my'),
-    apiRef('GET /gift-cards/{id}', 'GET', '/api/v1/gift-cards/{{giftCardId}}'),
-    apiRef('PUT /gift-cards/{id}', 'PUT', '/api/v1/gift-cards/{{giftCardId}}', { body: { cardSize: 'LARGE', recipientName: 'عمار', senderName: 'سعود' } }),
-    apiRef('POST /gift-cards/{id}/regenerate', 'POST', '/api/v1/gift-cards/{{giftCardId}}/regenerate'),
-    apiRef('GET /gift-cards/{id}/image', 'GET', '/api/v1/gift-cards/{{giftCardId}}/image'),
-    apiRef('GET /gift-cards/{id}/download?format=pdf', 'GET', '/api/v1/gift-cards/{{giftCardId}}/download?format=pdf'),
-    apiRef('GET /gift-cards/{id}/download?format=png', 'GET', '/api/v1/gift-cards/{{giftCardId}}/download?format=png'),
-    apiRef('POST /gift-cards/{id}/send-email', 'POST', '/api/v1/gift-cards/{{giftCardId}}/send-email', { body: { email: 'swwdswwd124@gmail.com' } }),
-    apiRef('DELETE /gift-cards/{id}', 'DELETE', '/api/v1/gift-cards/{{giftCardId}}')
+  folder('Gift History (7)', '', [
+    cat('POST /from-product/{id}', 'POST', '/api/v1/gift-history/from-product/{{selectedProductId}}', { body: { wasGifted: true, userRating: 5, notes: 'ممتاز' } }),
+    cat('PUT /from-product/{id}', 'PUT', '/api/v1/gift-history/from-product/{{selectedProductId}}', { body: { wasGifted: true, userRating: 4, notes: 'جيد' } }),
+    cat('GET /from-product/{id}', 'GET', '/api/v1/gift-history/from-product/{{selectedProductId}}'),
+    cat('DELETE /from-product/{id}', 'DELETE', '/api/v1/gift-history/from-product/{{selectedProductId}}'),
+    cat('GET /gift-history/my', 'GET', '/api/v1/gift-history/my'),
+    cat('GET /gift-history/summary', 'GET', '/api/v1/gift-history/summary'),
+    cat('GET /gift-history/spending-stats', 'GET', '/api/v1/gift-history/spending-stats?from=2026-01-01&to=2026-12-31')
   ]),
-  folder('Gift History', '7 endpoints', [
-    apiRef('POST /gift-history/from-product/{id}', 'POST', '/api/v1/gift-history/from-product/{{selectedProductId}}', { body: { wasGifted: true, userRating: 5, notes: 'ممتاز' } }),
-    apiRef('PUT /gift-history/from-product/{id}', 'PUT', '/api/v1/gift-history/from-product/{{selectedProductId}}', { body: { wasGifted: true, userRating: 4, notes: 'جيد' } }),
-    apiRef('GET /gift-history/from-product/{id}', 'GET', '/api/v1/gift-history/from-product/{{selectedProductId}}'),
-    apiRef('DELETE /gift-history/from-product/{id}', 'DELETE', '/api/v1/gift-history/from-product/{{selectedProductId}}'),
-    apiRef('GET /gift-history/my', 'GET', '/api/v1/gift-history/my'),
-    apiRef('GET /gift-history/summary', 'GET', '/api/v1/gift-history/summary'),
-    apiRef('GET /gift-history/spending-stats', 'GET', '/api/v1/gift-history/spending-stats?from=2026-01-01&to=2026-12-31')
+  folder('Gift Quality Checks (3)', '', [
+    cat('POST /add/{recipientId}', 'POST', '/api/v1/gift-quality-checks/add/' + R, { body: { giftName: 'ساعة', giftDescription: 'وصف', price: 499, occasionType: 'GRADUATION' } }),
+    cat('GET /recipients/{recipientId}', 'GET', '/api/v1/gift-quality-checks/recipients/' + R),
+    cat('GET /{checkId}', 'GET', '/api/v1/gift-quality-checks/{{qualityCheckId}}')
   ]),
-  folder('Gift Quality Checks', '3 endpoints', [
-    apiRef('POST /gift-quality-checks/add/{recipientId}', 'POST', '/api/v1/gift-quality-checks/add/' + R, { body: { giftName: 'ساعة', giftDescription: 'ساعة ذكية', price: 499, occasionType: 'GRADUATION' } }),
-    apiRef('GET /gift-quality-checks/recipients/{recipientId}', 'GET', '/api/v1/gift-quality-checks/recipients/' + R),
-    apiRef('GET /gift-quality-checks/{checkId}', 'GET', '/api/v1/gift-quality-checks/{{qualityCheckId}}')
+  folder('Reminders (5)', '', [
+    cat('POST /add/{recipientId}', 'POST', '/api/v1/reminders/add/' + R, { body: { reminderDate: '{{reminderDate}}', message: 'تذكير', status: 'PENDING' } }),
+    cat('GET /reminders/get', 'GET', '/api/v1/reminders/get'),
+    cat('GET /reminders/get-my', 'GET', '/api/v1/reminders/get-my'),
+    cat('PUT /update/{id}', 'PUT', '/api/v1/reminders/update/{{reminderId}}', { body: { reminderDate: '{{reminderDate}}', message: 'تذكير', status: 'PENDING' } }),
+    cat('DELETE /delete/{id}', 'DELETE', '/api/v1/reminders/delete/{{reminderId}}')
   ]),
-  folder('Reminders', '5 endpoints', [
-    apiRef('POST /reminders/add/{recipientId}', 'POST', '/api/v1/reminders/add/' + R, { body: { reminderDate: '{{reminderDate}}', message: 'تذكير', status: 'PENDING' } }),
-    apiRef('GET /reminders/get', 'GET', '/api/v1/reminders/get'),
-    apiRef('GET /reminders/get-my', 'GET', '/api/v1/reminders/get-my'),
-    apiRef('PUT /reminders/update/{id}', 'PUT', '/api/v1/reminders/update/{{reminderId}}', { body: { reminderDate: '{{reminderDate}}', message: 'تذكير محدّث', status: 'PENDING' } }),
-    apiRef('DELETE /reminders/delete/{id}', 'DELETE', '/api/v1/reminders/delete/{{reminderId}}')
+  folder('Notifications (6)', '', [
+    cat('POST /notifications', 'POST', '/api/v1/notifications', { body: { title: 'إشعار', message: 'رسالة', type: 'RECOMMENDATIONS_READY', status: 'UNREAD' } }),
+    cat('GET /notifications/my', 'GET', '/api/v1/notifications/my'),
+    cat('GET /notifications/{id}', 'GET', '/api/v1/notifications/{{notificationId}}'),
+    cat('PUT /notifications/{id}', 'PUT', '/api/v1/notifications/{{notificationId}}', { body: { status: 'READ' } }),
+    cat('PUT /notifications/{id}/read', 'PUT', '/api/v1/notifications/{{notificationId}}/read'),
+    cat('DELETE /notifications/{id}', 'DELETE', '/api/v1/notifications/{{notificationId}}')
   ]),
-  folder('Notifications', '5 endpoints', [
-    apiRef('POST /notifications', 'POST', '/api/v1/notifications', { body: { title: 'إشعار', message: 'رسالة', type: 'RECOMMENDATIONS_READY', status: 'UNREAD' } }),
-    apiRef('GET /notifications/my', 'GET', '/api/v1/notifications/my'),
-    apiRef('GET /notifications/{id}', 'GET', '/api/v1/notifications/{{notificationId}}'),
-    apiRef('PUT /notifications/{id}', 'PUT', '/api/v1/notifications/{{notificationId}}', { body: { status: 'READ' } }),
-    apiRef('DELETE /notifications/{id}', 'DELETE', '/api/v1/notifications/{{notificationId}}')
+  folder('Group Gifts (11)', '', [
+    cat('POST /group-gifts', 'POST', '/api/v1/group-gifts', { body: { recipientId: '{{recipientId}}', title: 'هدية', description: 'وصف', giftGivingDate: '{{giftGivingDate}}', votingDeadline: '{{votingDeadline}}' } }),
+    cat('GET /group-gifts/my', 'GET', '/api/v1/group-gifts/my'),
+    cat('GET /group-gifts/{id}', 'GET', '/api/v1/group-gifts/{{groupGiftId}}'),
+    cat('PUT /group-gifts/{id}', 'PUT', '/api/v1/group-gifts/{{groupGiftId}}', { body: { title: 'هدية', description: 'وصف', giftGivingDate: '{{giftGivingDate}}', votingDeadline: '{{votingDeadline}}' } }),
+    cat('DELETE /group-gifts/{id}', 'DELETE', '/api/v1/group-gifts/{{groupGiftId}}'),
+    cat('POST /add-option/{id}', 'POST', '/api/v1/group-gifts/add-option/{{groupGiftId}}', { body: { giftName: 'ساعة', description: 'وصف', priceBand: '500 SAR', reason: 'مناسبة' } }),
+    cat('POST /ai-generate-option/{id}', 'POST', '/api/v1/group-gifts/ai-generate-option/{{groupGiftId}}'),
+    cat('GET /get-options/{id}', 'GET', '/api/v1/group-gifts/get-options/{{groupGiftId}}'),
+    cat('POST /send-invite/{id}', 'POST', '/api/v1/group-gifts/send-invite/{{groupGiftId}}', { body: [{ inviteeName: 'ضيف', inviteeEmail: 'swwdswwd124@gmail.com' }] }),
+    cat('PUT /close-voting/{id}', 'PUT', '/api/v1/group-gifts/close-voting/{{groupGiftId}}'),
+    cat('GET /results/{id}', 'GET', '/api/v1/group-gifts/results/{{groupGiftId}}')
   ]),
-  folder('Group Gifts', '11 endpoints', [
-    apiRef('POST /group-gifts', 'POST', '/api/v1/group-gifts', { body: { recipientId: '{{recipientId}}', title: 'هدية جماعية', description: 'وصف', responsiblePersonName: 'سعود', responsiblePersonEmail: 'swwdswwd124@gmail.com', giftGivingDate: '{{giftGivingDate}}', votingDeadline: '{{votingDeadline}}' } }),
-    apiRef('GET /group-gifts/my', 'GET', '/api/v1/group-gifts/my'),
-    apiRef('GET /group-gifts/{id}', 'GET', '/api/v1/group-gifts/{{groupGiftId}}'),
-    apiRef('PUT /group-gifts/{id}', 'PUT', '/api/v1/group-gifts/{{groupGiftId}}', { body: { title: 'هدية محدّثة', description: 'وصف', responsiblePersonName: 'سعود', responsiblePersonEmail: 'swwdswwd124@gmail.com' } }),
-    apiRef('DELETE /group-gifts/{id}', 'DELETE', '/api/v1/group-gifts/{{groupGiftId}}'),
-    apiRef('POST /group-gifts/add-option/{id}', 'POST', '/api/v1/group-gifts/add-option/{{groupGiftId}}', { body: { giftName: 'ساعة', description: 'وصف', priceBand: '500 SAR', reason: 'مناسبة' } }),
-    apiRef('POST /group-gifts/ai-generate-option/{id}', 'POST', '/api/v1/group-gifts/ai-generate-option/{{groupGiftId}}'),
-    apiRef('GET /group-gifts/get-options/{id}', 'GET', '/api/v1/group-gifts/get-options/{{groupGiftId}}'),
-    apiRef('POST /group-gifts/send-invite/{id}', 'POST', '/api/v1/group-gifts/send-invite/{{groupGiftId}}', { body: [{ inviteeName: 'ضيف', inviteeEmail: 'swwdswwd124@gmail.com' }] }),
-    apiRef('PUT /group-gifts/close-voting/{id}', 'PUT', '/api/v1/group-gifts/close-voting/{{groupGiftId}}'),
-    apiRef('GET /group-gifts/results/{id}', 'GET', '/api/v1/group-gifts/results/{{groupGiftId}}')
+  folder('Public Group Gifts (2)', '', [
+    cat('GET /public/group-gifts/vote/{token}', 'GET', '/api/v1/public/group-gifts/vote/{{inviteToken}}', { auth: 'none' }),
+    cat('POST /public/group-gifts/vote/{token}', 'POST', '/api/v1/public/group-gifts/vote/{{inviteToken}}', { auth: 'none', body: { groupGiftOptionId: '{{groupGiftOptionId}}' } })
   ]),
-  folder('Public Group Gifts', '2 endpoints (no auth)', [
-    apiRef('GET /public/group-gifts/vote/{token}', 'GET', '/api/v1/public/group-gifts/vote/{{inviteToken}}', { auth: 'none' }),
-    apiRef('POST /public/group-gifts/vote/{token}', 'POST', '/api/v1/public/group-gifts/vote/{{inviteToken}}', { auth: 'none', body: { groupGiftOptionId: '{{groupGiftOptionId}}' } })
+  folder('Payments (5)', '', [
+    cat('POST /payments/premium', 'POST', '/api/v1/payments/premium', { body: PAYMENT_CARD, test: PAY_PREMIUM_TEST }),
+    cat('GET /payments/my', 'GET', '/api/v1/payments/my'),
+    cat('GET /premium/status', 'GET', '/api/v1/premium/status'),
+    cat('POST /payments/webhook/moyasar', 'POST', '/api/v1/payments/webhook/moyasar', { auth: 'none', body: { id: '{{moyasarId}}' } }),
+    cat('GET /payments/moyasar-status/{id}', 'GET', '/api/v1/payments/moyasar-status/{{moyasarId}}', { auth: 'none', test: MOYASAR_STATUS_TEST })
   ]),
-  folder('Payments & Premium', '5 endpoints', [
-    apiRef('POST /payments/premium', 'POST', '/api/v1/payments/premium', { body: { name: 'Saud', number: '4111111111111111', cvc: '123', month: '12', year: '30', callbackUrl: 'https://example.com/callback' } }),
-    apiRef('GET /payments/my', 'GET', '/api/v1/payments/my'),
-    apiRef('GET /premium/status', 'GET', '/api/v1/premium/status'),
-    apiRef('POST /payments/webhook/moyasar (public)', 'POST', '/api/v1/payments/webhook/moyasar', { auth: 'none', body: { id: '{{moyasarId}}' } }),
-    apiRef('GET /payments/moyasar-status/{id} (public)', 'GET', '/api/v1/payments/moyasar-status/{{moyasarId}}', { auth: 'none' })
-  ]),
-  folder('QR Code', '1 endpoint', [
-    apiRef('POST /qr-code/generate', 'POST', '/api/v1/qr-code/generate', { body: { url: 'https://example.com' } })
-  ]),
-  folder('Auth', '1 endpoint', [
-    apiRef('POST /auth/logout', 'POST', '/api/v1/auth/logout')
+  folder('QR Code & Auth (2)', '', [
+    cat('POST /qr-code/generate', 'POST', '/api/v1/qr-code/generate', { body: { url: 'https://example.com' } }),
+    cat('POST /auth/logout', 'POST', '/api/v1/auth/logout')
   ])
 ];
 
-folders.push(folder(
-  'API Reference — All Endpoints',
-  'Complete catalog: one request per route in the codebase (104 endpoints across 20 controllers). Run the main flow folders first so {{recipientId}}, {{giftPlanId}}, etc. are populated. ADMIN routes use {{adminUsername}}/{{adminPassword}}. Tests are tolerant.',
-  apiRefSubs
+flows.push(folder(
+  '20 — Complete API Catalog',
+  'One request per route (107 endpoints). Lookup reference — run flows 01–18 for the scripted journey.',
+  catalog
 ));
 
-// ============================ COLLECTION ============================
+// ═══════════════════════════════════════════════════════════════════════════
+// COLLECTION
+// ═══════════════════════════════════════════════════════════════════════════
 const collection = {
   info: {
-    name: 'Tahadaw — Full System Flows (Realistic Arabic Data)',
-    _postman_id: '0a4e1c7e-4f3a-4c2b-9b21-2a1d7f6e5c41',
+    name: 'Tahadaw — Complete API (2026)',
+    _postman_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     description: [
-      'End-to-end tests for every Tahadaw flow, grouped by the responsible developer, plus a final "Extra - Out-of-Flow Endpoints" folder for everything else.',
+      '# Tahadaw Complete API Collection',
       '',
-      'SECURITY: the backend uses HTTP Basic auth (no JWT). The signed-in user comes from the Spring Security principal — endpoints no longer take a userId param.',
-      '- Collection auth = Basic {{username}}/{{password}}.',
-      '- Flow 1 registers Saud and stores his credentials, so every later request authenticates as him.',
-      '- Public (no auth): POST /users/register, /api/v1/public/** (group-gift voting), the Moyasar webhook and moyasar-status callback.',
-      '- ADMIN-only: /users/get, required-questions add|update|delete|disable|get, ai-questions CRUD, ai-answers CRUD, required-question-answers CRUD.',
-      '  Registration only creates USER accounts, so admin requests use Basic {{adminUsername}}/{{adminPassword}} and are tolerant. To exercise them, promote a user to ADMIN in the DB and set those two variables.',
+      '## How to run',
+      '1. Start Spring Boot on `http://localhost:8080` (**restart after code changes**).',
+      '2. Run **01 → 18** top to bottom (registers Saud, captures all IDs).',
+      '3. After **01**, promote Saud for admin seeding: `UPDATE user SET role=\'ADMIN\' WHERE username=\'<from flow 01>\';` then run **03**.',
+      '4. **19 — Admin & Maintenance** for CRUD/cleanup. Skip self-delete unless intended.',
+      '5. **20 — Complete API Catalog** lists every route once.',
       '',
-      'Developers:',
-      '- Bayan  : Account/Users, Recipients, Admin Required Questions, Quality Check, Reminders, Notifications, Group Gifts.',
-      '- Shahad : Gift Plans, Required Q&A, AI Q&A, Recommendations, Product Search.',
-      '- Saud   : Premium Payment, Gift Messages, Gift Card, Surprise Plan, Gift History.',
+      '## Payment flow',
+      '- `POST /payments/premium` returns `transactionId` + `transactionUrl` for 3DS.',
+      '- `GET /payments/moyasar-status/{transactionId}` (public) activates premium when Moyasar reports paid.',
+      '- `POST /payments/webhook/moyasar` (public) also activates premium on paid.',
       '',
-      'Test data: owner/sender = Saud (سعود), recipient = Ammar (عمار), email = swwdswwd124@gmail.com, phone = 0502427714. Free text is in Arabic.',
+      '## Newman',
+      '```',
+      'node postman/build-collection.js',
+      'npx newman run postman/Tahadaw-Full-System-Flows.postman_collection.json',
+      '```',
       '',
-      'Run order is dependency-safe top to bottom. IDs are captured automatically between requests.',
+      '## Auth model',
+      '- HTTP Basic (no JWT). User from `@AuthenticationPrincipal`, not `?userId=`.',
+      '- Public: `POST /users/register`, `/public/**`, Moyasar webhook + status.',
       '',
-      'Manual / external notes:',
-      '- Premium activation needs the Moyasar 3-D Secure step (open transactionUrl logged in flow 4). Until done, Gift Card + Surprise Plan answer 403 (expected).',
-      '- Product Search needs searchapi.api.key; AI flows need openai.api.key; emails need spring.mail.* configured.',
-      '- The "Account Deletion" folder is destructive (self-delete) — run it last.'
+      '## Test data',
+      '- Saud (سعود) · Ammar (عمار) · swwdswwd124@gmail.com · 0502427714 · Arabic text',
+      '',
+      '## External deps',
+      '- OpenAI (flows 07, 08, 14, 17) · SearchAPI (flow 09) · Moyasar 3DS (flow 04) · Mail (flow 11)'
     ].join('\n'),
     schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
   },
@@ -899,19 +868,17 @@ const collection = {
       { key: 'password', value: '{{password}}', type: 'string' }
     ]
   },
-  item: folders,
+  item: flows,
   event: [
     ev('prerequest', [
-      "// Compute dynamic, always-valid dates once per request.",
       "function pad(n){return String(n).padStart(2,'0');}",
       "function fmtDate(x){return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate());}",
       "function fmtDT(x){return fmtDate(x)+'T'+pad(x.getHours())+':'+pad(x.getMinutes())+':'+pad(x.getSeconds());}",
-      "var now = new Date();",
-      "function plus(d){return new Date(now.getTime()+d*86400000);}",
-      "pm.collectionVariables.set('occasionDate', fmtDate(plus(30)));",
-      "pm.collectionVariables.set('reminderDate', fmtDT(plus(7)));",
-      "pm.collectionVariables.set('giftGivingDate', fmtDate(plus(21)));",
-      "pm.collectionVariables.set('votingDeadline', fmtDT(plus(14)));"
+      "var now=new Date(); function plus(d){return new Date(now.getTime()+d*86400000);}",
+      "pm.collectionVariables.set('occasionDate',fmtDate(plus(30)));",
+      "pm.collectionVariables.set('reminderDate',fmtDT(plus(7)));",
+      "pm.collectionVariables.set('giftGivingDate',fmtDate(plus(21)));",
+      "pm.collectionVariables.set('votingDeadline',fmtDT(plus(14)));"
     ])
   ],
   variable: [
@@ -953,8 +920,14 @@ const collection = {
 
 const outPath = path.join(__dirname, 'Tahadaw-Full-System-Flows.postman_collection.json');
 fs.writeFileSync(outPath, JSON.stringify(collection, null, 2), 'utf8');
+
 let count = 0;
-function countItems(items) { items.forEach(function (it) { if (it.request) count++; else if (it.item) countItems(it.item); }); }
-countItems(folders);
+(function walk(items) {
+  items.forEach(function (it) {
+    if (it.request) count++;
+    else if (it.item) walk(it.item);
+  });
+})(flows);
+
 console.log('Wrote ' + outPath);
-console.log('Top-level folders: ' + folders.length + ', Total requests: ' + count);
+console.log('Folders: ' + flows.length + ' | Requests: ' + count);

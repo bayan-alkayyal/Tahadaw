@@ -45,6 +45,12 @@ public class NotificationController {
         return ResponseEntity.ok(notificationService.update(user.getId(), notificationId, request));
     }
 
+    @PutMapping("/{notificationId}/read")
+    public ResponseEntity<NotificationDTOOut> markRead(@AuthenticationPrincipal User user,
+                                                       @PathVariable Long notificationId) {
+        return ResponseEntity.ok(notificationService.markRead(user.getId(), notificationId));
+    }
+
     @DeleteMapping("/{notificationId}")
     public ResponseEntity<ApiResponse> delete(@AuthenticationPrincipal User user,
                                               @PathVariable Long notificationId) {

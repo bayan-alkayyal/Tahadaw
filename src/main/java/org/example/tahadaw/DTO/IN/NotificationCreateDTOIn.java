@@ -19,6 +19,4 @@ public class NotificationCreateDTOIn {
 
     @NotNull
     private String type;
-
-    private String status;
 }

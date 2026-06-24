@@ -6,7 +6,8 @@ import org.example.tahadaw.AI.AiService;
 import org.example.tahadaw.Api.ApiException;
 import org.example.tahadaw.DTO.IN.GroupGiftCreateDTOIn;
 import org.example.tahadaw.DTO.IN.GroupGiftUpdateDTOIn;
-import org.example.tahadaw.DTO.OUT.GroupGiftDTOOut;
+import org.example.tahadaw.DTO.OUT.*;
+import org.example.tahadaw.Mapper.ResponseMapper;
 import org.example.tahadaw.Model.*;
 import org.example.tahadaw.Repository.*;
 import org.slf4j.Logger;
@@ -47,14 +48,14 @@ public class GroupGiftService {
         groupGift.setRecipient(recipient);
         groupGift.setTitle(request.getTitle());
         groupGift.setDescription(request.getDescription());
-        groupGift.setResponsiblePersonName(request.getResponsiblePersonName());
-        groupGift.setResponsiblePersonEmail(request.getResponsiblePersonEmail());
+        groupGift.setResponsiblePersonName(owner.getFullName());
+        groupGift.setResponsiblePersonEmail(owner.getEmail());
         groupGift.setGiftGivingDate(request.getGiftGivingDate());
         groupGift.setVotingDeadline(request.getVotingDeadline());
         groupGift.setStatus("OPEN");
         groupGift.setCreatedAt(LocalDateTime.now());
 
-        return toDto(groupGiftRepository.save(groupGift));
+        return ResponseMapper.toGroupGiftDto(groupGiftRepository.save(groupGift));
     }
 
     public List<GroupGiftDTOOut> listMine(Long userId) {
@@ -62,12 +63,12 @@ public class GroupGiftService {
                 .orElseThrow(() -> new ApiException("User not found."));
 
         return groupGiftRepository.findByOwner_IdOrderByCreatedAtDesc(userId).stream()
-                .map(this::toDto)
+                .map(ResponseMapper::toGroupGiftDto)
                 .toList();
     }
 
     public GroupGiftDTOOut getOne(Long userId, Long groupGiftId) {
-        return toDto(requireOwnedGroupGift(userId, groupGiftId));
+        return ResponseMapper.toGroupGiftDto(requireOwnedGroupGift(userId, groupGiftId));
     }
 
     @Transactional
@@ -80,12 +81,6 @@ public class GroupGiftService {
         if (request.getDescription() != null) {
             groupGift.setDescription(request.getDescription());
         }
-        if (request.getResponsiblePersonName() != null) {
-            groupGift.setResponsiblePersonName(request.getResponsiblePersonName());
-        }
-        if (request.getResponsiblePersonEmail() != null) {
-            groupGift.setResponsiblePersonEmail(request.getResponsiblePersonEmail());
-        }
         if (request.getGiftGivingDate() != null) {
             groupGift.setGiftGivingDate(request.getGiftGivingDate());
         }
@@ -95,7 +90,7 @@ public class GroupGiftService {
         // status is intentionally NOT editable here; it is owned by the voting
         // state machine (OPEN on create -> CLOSED via closeVoting).
 
-        return toDto(groupGiftRepository.save(groupGift));
+        return ResponseMapper.toGroupGiftDto(groupGiftRepository.save(groupGift));
     }
 
     @Transactional
@@ -122,24 +117,6 @@ public class GroupGiftService {
         return groupGift;
     }
 
-    private GroupGiftDTOOut toDto(GroupGift groupGift) {
-        return new GroupGiftDTOOut(
-                groupGift.getId(),
-                groupGift.getOwner().getId(),
-                groupGift.getRecipient().getId(),
-                groupGift.getTitle(),
-                groupGift.getDescription(),
-                groupGift.getResponsiblePersonName(),
-                groupGift.getResponsiblePersonEmail(),
-                groupGift.getGiftGivingDate(),
-                groupGift.getVotingDeadline(),
-                groupGift.getWinningOption() != null ? groupGift.getWinningOption().getId() : null,
-                groupGift.getStatus(),
-                groupGift.getCreatedAt()
-        );
-    }
-
-
     //Bayan
     public void addGroupGiftOption(Long userId, Long groupGiftId, GroupGiftOption groupGiftOption) {
 
@@ -153,9 +130,7 @@ public class GroupGiftService {
             throw new ApiException("This group gift does not belong to this user");
         }
 
-        if (groupGift.getStatus().equals("CLOSED")) {
-            throw new ApiException("Cannot add option because voting is closed");
-        }
+        ensureVotingOpen(groupGift);
 
         groupGiftOption.setGroupGift(groupGift);
         groupGiftOption.setCreatedAt(LocalDateTime.now());
@@ -178,14 +153,24 @@ public class GroupGiftService {
             throw new ApiException("This group gift does not belong to this user");
         }
 
-        if ("CLOSED".equals(groupGift.getStatus())) {
-            throw new ApiException("Cannot generate options because voting is closed");
-        }
+        ensureVotingOpen(groupGift);
 
         Recipient recipient = groupGift.getRecipient();
 
         if (recipient == null) {
             throw new ApiException("Group gift recipient not found");
+        }
+
+        List<GroupGiftOption> existingOptions =
+                groupGiftOptionRepository.findAllByGroupGift_Id(groupGiftId);
+        for (GroupGiftOption existing : existingOptions) {
+            if (groupGiftVoteRepository.countByGroupGiftOption_Id(existing.getId()) > 0) {
+                throw new ApiException("Cannot regenerate options after votes have been cast.");
+            }
+        }
+        if (!existingOptions.isEmpty()) {
+            groupGiftOptionRepository.deleteAll(existingOptions);
+            groupGiftOptionRepository.flush();
         }
 
         String prompt = buildGroupGiftOptionsPrompt(groupGift, recipient);
@@ -291,8 +276,8 @@ public class GroupGiftService {
                 groupGift.getDescription(),
                 groupGift.getGiftGivingDate(),
                 groupGift.getVotingDeadline(),
-                groupGift.getResponsiblePersonName(),
-                groupGift.getResponsiblePersonEmail(),
+                ownerDisplayName(groupGift),
+                ownerEmail(groupGift),
                 recipient.getName(),
                 recipient.getRelationship(),
                 recipient.getAge(),
@@ -309,17 +294,16 @@ public class GroupGiftService {
     }
 
     //Bayan
-    public List<GroupGiftOption> getOptions(Long groupGiftId) {
-
-        GroupGift groupGift = groupGiftRepository.findGroupGiftById(groupGiftId)
-                .orElseThrow(() -> new ApiException("Group gift not found"));
-
-        return groupGiftOptionRepository.findAllByGroupGift_Id(groupGift.getId());
+    public List<GroupGiftOptionDTOOut> getOptions(Long userId, Long groupGiftId) {
+        requireOwnedGroupGift(userId, groupGiftId);
+        return groupGiftOptionRepository.findAllByGroupGift_Id(groupGiftId).stream()
+                .map(ResponseMapper::toGroupGiftOptionDto)
+                .toList();
     }
 
     //Bayan
     @Transactional
-    public List<GroupGiftInvite> sendInvites(Long userId, Long groupGiftId, List<GroupGiftInvite> invites) {
+    public List<GroupGiftInviteDTOOut> sendInvites(Long userId, Long groupGiftId, List<GroupGiftInvite> invites) {
 
         User user = userRepository.findUserById(userId)
                 .orElseThrow(() -> new ApiException("User not found"));
@@ -331,11 +315,9 @@ public class GroupGiftService {
             throw new ApiException("This group gift does not belong to this user");
         }
 
-        if ("CLOSED".equals(groupGift.getStatus())) {
-            throw new ApiException("Cannot send invites because voting is closed");
-        }
+        ensureVotingOpen(groupGift);
 
-        List<GroupGiftInvite> result = new ArrayList<>();
+        List<GroupGiftInviteDTOOut> result = new ArrayList<>();
 
         for (GroupGiftInvite currentInvite : invites) {
 
@@ -362,7 +344,7 @@ public class GroupGiftService {
                         savedInvite.getInviteeEmail(), savedInvite.getId(), e.getMessage());
             }
 
-            result.add(savedInvite);
+            result.add(ResponseMapper.toGroupGiftInviteDto(savedInvite));
         }
 
         return result;
@@ -370,35 +352,18 @@ public class GroupGiftService {
 
 
     //Bayan
-    public Map<String, Object> getVotePageData(String token) {
+    public GroupGiftVotePageDTOOut getVotePageData(String token) {
 
         GroupGiftInvite invite = groupGiftInviteRepository.findByToken(token)
                 .orElseThrow(() -> new ApiException("Invalid vote token"));
 
         GroupGift groupGift = invite.getGroupGift();
 
-        if ("CLOSED".equals(groupGift.getStatus())) {
-            throw new ApiException("Voting is closed");
-        }
+        ensureVotingOpen(groupGift);
 
         List<GroupGiftOption> options = groupGiftOptionRepository.findAllByGroupGift_Id(groupGift.getId());
 
-        Map<String, Object> response = new LinkedHashMap<>();
-
-        response.put("groupGiftId", groupGift.getId());
-        response.put("title", groupGift.getTitle());
-        response.put("description", groupGift.getDescription());
-        response.put("recipientName", groupGift.getRecipient().getName());
-        response.put("votingDeadline", groupGift.getVotingDeadline());
-        response.put("status", groupGift.getStatus());
-
-
-        response.put("options", options);
-
-        response.put("inviteeName", invite.getInviteeName());
-        response.put("voteStatus", invite.getStatus());
-
-        return response;
+        return ResponseMapper.toGroupGiftVotePageDto(groupGift, invite, options);
     }
 
     //Bayan
@@ -410,11 +375,9 @@ public class GroupGiftService {
 
         GroupGift groupGift = invite.getGroupGift();
 
-        if (groupGift.getStatus().equals("CLOSED")) {
-            throw new ApiException("Voting is closed");
-        }
+        ensureVotingOpen(groupGift);
 
-        if (invite.getStatus().equals("VOTED")) {
+        if ("VOTED".equals(invite.getStatus())) {
             throw new ApiException("This invite has already voted");
         }
 
@@ -476,18 +439,44 @@ public class GroupGiftService {
             }
         }
 
-        if (winningOption == null) {
-            throw new ApiException("No votes submitted yet");
+        if (winningOption != null) {
+            groupGift.setWinningOption(winningOption);
+        } else {
+            groupGift.setWinningOption(null);
         }
-
-        groupGift.setWinningOption(winningOption);
         groupGift.setStatus("CLOSED");
 
         groupGiftRepository.save(groupGift);
     }
 
+    private static String ownerDisplayName(GroupGift groupGift) {
+        User owner = groupGift.getOwner();
+        if (owner != null && owner.getFullName() != null && !owner.getFullName().isBlank()) {
+            return owner.getFullName();
+        }
+        return groupGift.getResponsiblePersonName();
+    }
 
-    public Map<String, Object> getResults(Long userId, Long groupGiftId) {
+    private static String ownerEmail(GroupGift groupGift) {
+        User owner = groupGift.getOwner();
+        if (owner != null && owner.getEmail() != null && !owner.getEmail().isBlank()) {
+            return owner.getEmail();
+        }
+        return groupGift.getResponsiblePersonEmail();
+    }
+
+    private void ensureVotingOpen(GroupGift groupGift) {
+        if ("CLOSED".equals(groupGift.getStatus())) {
+            throw new ApiException("Voting is closed");
+        }
+        if (groupGift.getVotingDeadline() != null
+                && LocalDateTime.now().isAfter(groupGift.getVotingDeadline())) {
+            throw new ApiException("Voting deadline has passed");
+        }
+    }
+
+
+    public GroupGiftResultsDTOOut getResults(Long userId, Long groupGiftId) {
 
         GroupGift groupGift = groupGiftRepository.findGroupGiftById(groupGiftId)
                 .orElseThrow(() -> new ApiException("Group gift not found"));
@@ -498,30 +487,11 @@ public class GroupGiftService {
 
         List<GroupGiftOption> options = groupGiftOptionRepository.findAllByGroupGift_Id(groupGiftId);
 
-        List<Map<String, Object>> results = new ArrayList<>();
-
-        for (GroupGiftOption option : options) {
-
-            long votesCount = groupGiftVoteRepository.countByGroupGiftOption_Id(option.getId());
-
-            Map<String, Object> optionResult = new HashMap<>();
-
-            optionResult.put("optionId", option.getId());
-            optionResult.put("giftName", option.getGiftName());
-            optionResult.put("votesCount", votesCount);
-
-            results.add(optionResult);
-        }
-
-        Map<String, Object> response = new HashMap<>();
-
-        response.put("groupGiftId", groupGift.getId());
-        response.put("title", groupGift.getTitle());
-        response.put("status", groupGift.getStatus());
-        response.put("winningOption", groupGift.getWinningOption() == null ? null : groupGift.getWinningOption().getGiftName());
-        response.put("results", results);
-
-        return response;
+        return ResponseMapper.toGroupGiftResultsDto(
+                groupGift,
+                options,
+                optionId -> groupGiftVoteRepository.countByGroupGiftOption_Id(optionId)
+        );
     }
 
 

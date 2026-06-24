@@ -16,4 +16,6 @@ public interface RequiredQuestionAnswerRepository extends JpaRepository<Required
     List<RequiredQuestionAnswer> findRequiredQuestionAnswerByGiftPlan(GiftPlan giftPlan);
     
     Optional<RequiredQuestionAnswer> findByGiftPlan_IdAndRequiredQuestion_Id(Long giftPlanId, Long requiredQuestionId);
+
+    boolean existsByRequiredQuestion_Id(Long requiredQuestionId);
 }

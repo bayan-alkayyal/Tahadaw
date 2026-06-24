@@ -5,8 +5,11 @@ import org.example.tahadaw.Api.ApiException;
 import org.example.tahadaw.DTO.IN.RequiredQuestionAnswerDTOIn;
 import org.example.tahadaw.DTO.IN.RequiredQuestionAnswerItemDTOIn;
 import org.example.tahadaw.DTO.IN.RequiredQuestionAnswersSubmitDTOIn;
+import org.example.tahadaw.DTO.OUT.RequiredQuestionAnswerDetailDTOOut;
 import org.example.tahadaw.DTO.OUT.RequiredQuestionAnswerDTOOut;
+import org.example.tahadaw.Mapper.ResponseMapper;
 import org.example.tahadaw.Model.GiftPlan;
+import org.example.tahadaw.Model.GiftPlanStatus;
 import org.example.tahadaw.Model.RequiredQuestion;
 import org.example.tahadaw.Model.RequiredQuestionAnswer;
 import org.example.tahadaw.Repository.GiftPlanRepository;
@@ -45,28 +48,32 @@ public class RequiredQuestionAnswerService {
 
     }
 
-    public List<RequiredQuestionAnswer> getAllRequiredQuestionAnswer() {
-        return requiredQuestionAnswerRepository.findAll();
+    public List<RequiredQuestionAnswerDetailDTOOut> getAllRequiredQuestionAnswer() {
+        return requiredQuestionAnswerRepository.findAll().stream()
+                .map(ResponseMapper::toRequiredQuestionAnswerDetailDto)
+                .toList();
     }
 
     public void updateRequiredQuestionAnswer(long id, RequiredQuestionAnswerDTOIn request) {
-        RequiredQuestionAnswer oldRequiredQuestionAnswer = getRequiredQuestionAnswerById(id);
+        RequiredQuestionAnswer oldRequiredQuestionAnswer = getRequiredQuestionAnswerEntityById(id);
         oldRequiredQuestionAnswer.setAnswerText(request.getAnswerText());
         requiredQuestionAnswerRepository.save(oldRequiredQuestionAnswer);
 
     }
 
     public void deleteRequiredQuestionAnswer(Long id) {
-        RequiredQuestionAnswer oldRequiredQuestionAnswer = getRequiredQuestionAnswerById(id);
+        RequiredQuestionAnswer oldRequiredQuestionAnswer = getRequiredQuestionAnswerEntityById(id);
         requiredQuestionAnswerRepository.delete(oldRequiredQuestionAnswer);
     }
 
 
-    public RequiredQuestionAnswer getRequiredQuestionAnswerById(Long id) {
-        RequiredQuestionAnswer requiredQuestionAnswer = requiredQuestionAnswerRepository.findRequiredQuestionAnswerById(id)
-                .orElseThrow(() -> new ApiException("the answer for required question not found."));
+    public RequiredQuestionAnswerDetailDTOOut getRequiredQuestionAnswerById(Long id) {
+        return ResponseMapper.toRequiredQuestionAnswerDetailDto(getRequiredQuestionAnswerEntityById(id));
+    }
 
-        return requiredQuestionAnswer;
+    private RequiredQuestionAnswer getRequiredQuestionAnswerEntityById(Long id) {
+        return requiredQuestionAnswerRepository.findRequiredQuestionAnswerById(id)
+                .orElseThrow(() -> new ApiException("the answer for required question not found."));
     }
 
 
@@ -75,9 +82,10 @@ public class RequiredQuestionAnswerService {
                                                             RequiredQuestionAnswersSubmitDTOIn request) {
         GiftPlan giftPlan = requireOwnedGiftPlan(userId, giftPlanId);
 
-//        if (!"CREATED".equals(giftPlan.getStatus())) {
-//            throw new ApiException("Required answers can only be submitted while the gift plan is in CREATED status.");
-//        }
+        if (!GiftPlanStatus.CREATED.equals(giftPlan.getStatus())
+                && !GiftPlanStatus.REQUIRED_QUESTIONS_ANSWERED.equals(giftPlan.getStatus())) {
+            throw new ApiException("Required answers can only be submitted before AI questions are generated.");
+        }
         //getting the requierd Q that are active
         List<RequiredQuestion> activeQuestions = requiredQuestionRepository.findByIsActiveTrueOrderByDisplayOrderAsc();
         if (activeQuestions.isEmpty()) {
@@ -123,7 +131,7 @@ public class RequiredQuestionAnswerService {
             requiredQuestionAnswerRepository.save(answer);
         }
 
-        giftPlan.setStatus("REQUIRED_QUESTIONS_ANSWERED");
+        giftPlan.setStatus(GiftPlanStatus.REQUIRED_QUESTIONS_ANSWERED);
         giftPlan.setUpdatedAt(LocalDateTime.now());
         giftPlanRepository.save(giftPlan);
 
@@ -157,14 +165,11 @@ public class RequiredQuestionAnswerService {
     }
 
     private RequiredQuestionAnswerDTOOut toDto(RequiredQuestionAnswer answer) {
-        RequiredQuestionAnswerDTOOut requiredQuestionAnswerDTOOut = new RequiredQuestionAnswerDTOOut(
+        return new RequiredQuestionAnswerDTOOut(
                 answer.getId(),
-                answer.getGiftPlan().getId(),
                 answer.getRequiredQuestion().getId(),
                 answer.getRequiredQuestion().getQuestionText(),
-                answer.getAnswerText(),
-                answer.getCreatedAt()
+                answer.getAnswerText()
         );
-        return requiredQuestionAnswerDTOOut;
     }
 }

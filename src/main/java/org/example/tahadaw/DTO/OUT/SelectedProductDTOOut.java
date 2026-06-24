@@ -1,12 +1,14 @@
 package org.example.tahadaw.DTO.OUT;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-@Data
-@AllArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
 public class SelectedProductDTOOut {
 
     private Long id;
@@ -17,5 +19,4 @@ public class SelectedProductDTOOut {
     private String productUrl;
     private String sourceName;
     private Double rating;
-    private LocalDateTime createdAt;
 }

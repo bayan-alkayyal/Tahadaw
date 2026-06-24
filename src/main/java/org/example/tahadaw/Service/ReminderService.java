@@ -2,6 +2,8 @@ package org.example.tahadaw.Service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.Api.ApiException;
+import org.example.tahadaw.DTO.OUT.ReminderDTOOut;
+import org.example.tahadaw.Mapper.ResponseMapper;
 import org.example.tahadaw.Model.Recipient;
 import org.example.tahadaw.Model.Reminder;
 import org.example.tahadaw.Model.User;
@@ -44,9 +46,11 @@ public class ReminderService {
         reminderRepository.save(reminder);
     }
 
-    public List<Reminder> getReminders(Long userId) {
+    public List<ReminderDTOOut> getReminders(Long userId) {
         userRepository.findUserById(userId).orElseThrow(() -> new ApiException("User not found"));
-        return reminderRepository.findAllByUser_IdOrderByReminderDateAsc(userId);
+        return reminderRepository.findAllByUser_IdOrderByReminderDateAsc(userId).stream()
+                .map(ResponseMapper::toReminderDto)
+                .toList();
     }
 
     public void updateReminder(Long userId, Long reminderId, Reminder reminder) {
@@ -77,26 +81,13 @@ public class ReminderService {
 
 
     //Bayan
-    public List<Reminder> getMyReminders(Long userId){
-
-        User user = userRepository.findUserById(userId).orElseThrow(() -> new ApiException("User not found"));
-
-        List<Reminder> reminders = reminderRepository.findAllByUser_IdOrderByReminderDateAsc(userId);
-
-
-        if(reminders.isEmpty()){
-            throw new ApiException("No reminders found");
-        }
-
-        return reminders;
+    public List<ReminderDTOOut> getMyReminders(Long userId) {
+        return getReminders(userId);
     }
 
-    //Bayan
-    //@Scheduled(cron = "0 0 8 * * *", zone = "Asia/Riyadh") //actual
-    @Scheduled(fixedRate = 60000)                           //for test
+    @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Riyadh")
     @Transactional
-    
-    public void checkTodayRemindersAndSendWhatsApp(){
+    public void checkTodayRemindersAndSendWhatsApp() {
 
         LocalDate today = LocalDate.now();
 

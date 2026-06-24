@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.AI.AiJsonParser;
 import org.example.tahadaw.AI.AiService;
 import org.example.tahadaw.Api.ApiException;
+import org.example.tahadaw.DTO.OUT.GiftQualityCheckDTOOut;
+import org.example.tahadaw.Mapper.ResponseMapper;
 import org.example.tahadaw.Model.GiftHistory;
 import org.example.tahadaw.Model.GiftQualityCheck;
 import org.example.tahadaw.Model.Recipient;
@@ -152,7 +154,7 @@ public class GiftQualityCheckService {
 
 
     //Bayan
-    public List<GiftQualityCheck> getGiftQualityChecksByRecipient(Long userId, Long recipientId) {
+    public List<GiftQualityCheckDTOOut> getGiftQualityChecksByRecipient(Long userId, Long recipientId) {
 
         userRepository.findUserById(userId)
                 .orElseThrow(() -> new ApiException("User not found"));
@@ -160,18 +162,21 @@ public class GiftQualityCheckService {
         recipientRepository.findRecipientByIdAndUser_Id(recipientId, userId)
                 .orElseThrow(() -> new ApiException("Recipient not found or does not belong to this user"));
 
-        return giftQualityCheckRepository.findAllByRecipient_IdAndUser_Id(recipientId, userId);
+        return giftQualityCheckRepository.findAllByRecipient_IdAndUser_Id(recipientId, userId).stream()
+                .map(ResponseMapper::toGiftQualityCheckDto)
+                .toList();
     }
 
 
     //Bayan
-    public GiftQualityCheck getGiftQualityCheckById(Long userId, Long checkId) {
+    public GiftQualityCheckDTOOut getGiftQualityCheckById(Long userId, Long checkId) {
 
         userRepository.findUserById(userId)
                 .orElseThrow(() -> new ApiException("User not found"));
 
-        return giftQualityCheckRepository.findGiftQualityCheckByIdAndUser_Id(checkId, userId)
+        GiftQualityCheck check = giftQualityCheckRepository.findGiftQualityCheckByIdAndUser_Id(checkId, userId)
                 .orElseThrow(() -> new ApiException("Gift quality check not found or does not belong to this user"));
+        return ResponseMapper.toGiftQualityCheckDto(check);
     }
 
 }

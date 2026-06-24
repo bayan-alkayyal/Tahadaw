@@ -2,6 +2,8 @@ package org.example.tahadaw.Service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.Api.ApiException;
+import org.example.tahadaw.DTO.OUT.RecipientDTOOut;
+import org.example.tahadaw.Mapper.ResponseMapper;
 import org.example.tahadaw.Model.Recipient;
 import org.example.tahadaw.Model.User;
 import org.example.tahadaw.Repository.RecipientRepository;
@@ -69,19 +71,22 @@ public class RecipientService {
     }
 
     //Bayan
-    public List<Recipient> getRecipientsByUserId(Long userId){
+    public List<RecipientDTOOut> getRecipientsByUserId(Long userId){
 
         User user = userRepository.findUserById(userId).orElseThrow(() -> new ApiException("User not found"));
-        return recipientRepository.findAllByUser_Id(user.getId());
+        return recipientRepository.findAllByUser_Id(user.getId()).stream()
+                .map(ResponseMapper::toRecipientDto)
+                .toList();
     }
 
     //Bayan
-    public Recipient getRecipientByIdAndUserId(Long userId, Long recipientId){
+    public RecipientDTOOut getRecipientByIdAndUserId(Long userId, Long recipientId){
 
         userRepository.findUserById(userId)
                 .orElseThrow(() -> new ApiException("User not found"));
 
-        return recipientRepository.findRecipientByIdAndUser_Id(recipientId, userId)
+        Recipient recipient = recipientRepository.findRecipientByIdAndUser_Id(recipientId, userId)
                 .orElseThrow(() -> new ApiException("Recipient not found or does not belong to this user"));
+        return ResponseMapper.toRecipientDto(recipient);
     }
 }

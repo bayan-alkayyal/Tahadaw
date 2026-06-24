@@ -214,14 +214,12 @@ public class SurprisePlanService {
     private SurprisePlanDTOOut toDto(SurprisePlan surprisePlan) {
         return new SurprisePlanDTOOut(
                 surprisePlan.getId(),
-                surprisePlan.getGiftPlan().getId(),
                 surprisePlan.getPlanTitle(),
                 surprisePlan.getSteps(),
                 surprisePlan.getRequiredItems(),
                 surprisePlan.getTimingSuggestion(),
                 surprisePlan.getBackupPlan(),
-                surprisePlan.getAiExplanation(),
-                surprisePlan.getCreatedAt()
+                surprisePlan.getAiExplanation()
         );
     }
 }

@@ -33,14 +33,14 @@ public class AiQuestionController {
 
     // READ - all
     @GetMapping("/get")
-    public ResponseEntity<?> getAllAiQuestions() {
-        return ResponseEntity.status(200).body(aiQuestionService.getAllAiQuestion());
+    public ResponseEntity<List<AiGeneratedQuestionDTOOut>> getAllAiQuestions() {
+        return ResponseEntity.ok(aiQuestionService.getAllAiQuestion());
     }
 
     // READ - by id
     @GetMapping("/get-by-id/{id}")
-    public ResponseEntity<?> getAiQuestionById(@PathVariable Long id) {
-        return ResponseEntity.status(200).body(aiQuestionService.getAiQuestionById(id));
+    public ResponseEntity<AiGeneratedQuestionDTOOut> getAiQuestionById(@PathVariable Long id) {
+        return ResponseEntity.ok(aiQuestionService.getAiQuestionById(id));
     }
 
     // UPDATE
@@ -59,10 +59,10 @@ public class AiQuestionController {
     }
 
     // Shahad
-    @GetMapping("/generate/{giftPlanId}")
-    public ResponseEntity<?> generateAiQuestions(@AuthenticationPrincipal User user,
+    @PostMapping("/generate/{giftPlanId}")
+    public ResponseEntity<List<AiGeneratedQuestionDTOOut>> generateAiQuestions(@AuthenticationPrincipal User user,
                                                        @PathVariable Long giftPlanId) {
-        return ResponseEntity.status(200).body(aiQuestionService.generateQuestions(user.getId(), giftPlanId));
+        return ResponseEntity.ok(aiQuestionService.generateQuestions(user.getId(), giftPlanId));
     }
 
     // Shahad
@@ -72,7 +72,7 @@ public class AiQuestionController {
         return ResponseEntity.ok(aiQuestionService.listQuestions(user.getId(), giftPlanId));
     }
 
-    @GetMapping("/regenerate/{giftPlanId}")
+    @PostMapping("/regenerate/{giftPlanId}")
     public ResponseEntity<List<AiGeneratedQuestionDTOOut>> regenerateAiQuestions(@AuthenticationPrincipal User user,
                                                                                  @PathVariable Long giftPlanId) {
         return ResponseEntity.ok(aiQuestionService.regenerateQuestions(user.getId(), giftPlanId));

@@ -1,17 +1,14 @@
 package org.example.tahadaw.DTO.OUT;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class GiftPlanSummeryDTOOut {
 
     private Long id;
@@ -19,7 +16,6 @@ public class GiftPlanSummeryDTOOut {
     private LocalDate occasionDate;
     private RecipientDTOOut recipient;
     private Long budget;
-    private SelectedProductSummeryDTOOut selectedGiftIdeaId;
+    private SelectedProductSummeryDTOOut selectedProduct;
     private String message;
-
 }

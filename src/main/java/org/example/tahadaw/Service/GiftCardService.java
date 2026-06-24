@@ -52,7 +52,7 @@ public class GiftCardService {
         giftCard.setLinkType(request.getLinkType());
         giftCard.setLinkUrl(request.getLinkUrl());
         giftCard.setSentToEmail(request.getSentToEmail());
-        giftCard.setStatus(request.getStatus() != null ? request.getStatus() : "DRAFT");
+        giftCard.setStatus("DRAFT");
         giftCard.setCreatedAt(LocalDateTime.now());
 
         if (request.getGiftMessageId() != null) {
@@ -126,9 +126,6 @@ public class GiftCardService {
         }
         if (request.getSentToEmail() != null) {
             giftCard.setSentToEmail(request.getSentToEmail());
-        }
-        if (request.getStatus() != null) {
-            giftCard.setStatus(request.getStatus());
         }
 
         if (imageRelevantChange) {
@@ -252,16 +249,13 @@ public class GiftCardService {
     private GiftCardDTOOut toDto(GiftCard giftCard) {
         return new GiftCardDTOOut(
                 giftCard.getId(),
-                giftCard.getUser().getId(),
                 giftCard.getGiftMessage() != null ? giftCard.getGiftMessage().getId() : null,
                 giftCard.getRecipientName(),
                 giftCard.getSenderName(),
                 giftCard.getCardSize(),
                 giftCard.getLinkType(),
                 giftCard.getLinkUrl(),
-                giftCard.getSentToEmail(),
-                giftCard.getStatus(),
-                giftCard.getCreatedAt()
+                giftCard.getSentToEmail()
         );
     }
 }

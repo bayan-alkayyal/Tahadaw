@@ -5,8 +5,10 @@ import org.example.tahadaw.Api.ApiException;
 import org.example.tahadaw.DTO.IN.ProductSelectDTOIn;
 import org.example.tahadaw.DTO.OUT.ProductSearchResultDTOOut;
 import org.example.tahadaw.DTO.OUT.SelectedProductDTOOut;
+import org.example.tahadaw.Mapper.ResponseMapper;
 import org.example.tahadaw.Model.GiftIdeaRecommendation;
 import org.example.tahadaw.Model.GiftPlan;
+import org.example.tahadaw.Model.GiftPlanStatus;
 import org.example.tahadaw.Model.SelectedProduct;
 import org.example.tahadaw.Repository.GiftIdeaRecommendationRepository;
 import org.example.tahadaw.Repository.GiftPlanRepository;
@@ -52,21 +54,18 @@ public class ProductSearchService {
         if (!giftPlan.getUser().getId().equals(userId)) {
             throw new ApiException("Gift plan is not yours");
         }
-        List<SelectedProduct> selectedIdea = selectedProductRepository
-                .findSelectedProductByGiftIdeaRecommendationAndIsSelectedTrue(recommendation);
-
-
-        if (!selectedIdea.isEmpty()) {
+        if (giftPlan.getSelectedProduct() != null) {
             throw new ApiException("You already selected a product for this gift plan.");
         }
 
-        List<SelectedProduct> productIdeas = selectedProductRepository
-                .findSelectedProductByGiftIdeaRecommendation(recommendation);
-
-        if (productIdeas.isEmpty()) {
-            throw new ApiException("You have to generate a product recommendation before selecting a product.");
+        GiftIdeaRecommendation planSelectedIdea = giftPlan.getSelectedGiftIdea();
+        if (planSelectedIdea == null || !planSelectedIdea.getId().equals(recommendation.getId())) {
+            throw new ApiException("Product does not belong to the selected gift idea for this plan.");
         }
 
+        if (!recommendation.getGiftPlan().getId().equals(giftPlan.getId())) {
+            throw new ApiException("Product does not belong to this gift plan.");
+        }
 
         giftPlan.setSelectedProduct(selectedProduct);
         selectedProduct.setIsSelected(true);
@@ -78,8 +77,8 @@ public class ProductSearchService {
         selectedProduct.setRecipient(giftPlan.getRecipient());
         selectedProductRepository.save(selectedProduct);
         selectedProductRepository.deleteSelectedProductsByGiftIdeaRecommendation(recommendation);
-        if (giftPlan.getStatus() == "GIFT_IDEA_SELECTED") {
-            giftPlan.setStatus("PRODUCT_SELECTED");
+        if (GiftPlanStatus.GIFT_IDEA_SELECTED.equals(giftPlan.getStatus())) {
+            giftPlan.setStatus(GiftPlanStatus.PRODUCT_SELECTED);
         }
         giftPlan.setUpdatedAt(LocalDateTime.now());
         giftPlanRepository.save(giftPlan);
@@ -101,7 +100,7 @@ public class ProductSearchService {
             throw new ApiException("No product selected yet for this gift plan.");
         }
 
-        return toSelectedProductDto(selectedProduct);
+        return ResponseMapper.toSelectedProductDto(selectedProduct);
     }
 
     /**
@@ -128,8 +127,8 @@ public class ProductSearchService {
         selectedProductRepository.delete(selectedProduct);
         selectedProductRepository.flush();
 
-        if ("PRODUCT_SELECTED".equals(giftPlan.getStatus())) {
-            giftPlan.setStatus("GIFT_IDEA_SELECTED");
+        if (GiftPlanStatus.PRODUCT_SELECTED.equals(giftPlan.getStatus())) {
+            giftPlan.setStatus(GiftPlanStatus.GIFT_IDEA_SELECTED);
         }
         giftPlan.setUpdatedAt(LocalDateTime.now());
         giftPlanRepository.save(giftPlan);
@@ -157,29 +156,23 @@ public class ProductSearchService {
         String sourceName = item.path("seller").asString(null);
         Double rating = item.path("rating").isNumber() ? item.path("rating").asDouble() : null;
 
-        return new ProductSearchResultDTOOut(
-                title,
-                priceMinor,
-                defaultCurrency,
-                priceLabel,
-                imageUrl,
-                productUrl,
-                sourceName,
-                rating
-        );
+        ProductSearchResultDTOOut dto = new ProductSearchResultDTOOut();
+        dto.setTitle(title);
+        dto.setCurrency(defaultCurrency);
+        dto.setProductUrl(productUrl);
+        if (extractedPrice != null) {
+            dto.setPrice(extractedPrice);
+        }
+        if (imageUrl != null && !imageUrl.isBlank()) {
+            dto.setImageUrl(imageUrl);
+        }
+        if (sourceName != null && !sourceName.isBlank()) {
+            dto.setSourceName(sourceName);
+        }
+        if (rating != null) {
+            dto.setRating(rating);
+        }
+        return dto;
     }
 
-    private SelectedProductDTOOut toSelectedProductDto(SelectedProduct selectedProduct) {
-        return new SelectedProductDTOOut(
-                selectedProduct.getId(),
-                selectedProduct.getProductName(),
-                selectedProduct.getPrice(),
-                selectedProduct.getCurrency(),
-                selectedProduct.getImageUrl(),
-                selectedProduct.getProductUrl(),
-                selectedProduct.getStoreName(),
-                selectedProduct.getRating(),
-                selectedProduct.getCreatedAt()
-        );
-    }
 }

@@ -42,17 +42,21 @@ public class DashboardService {
                         .filter(reminder -> reminder.getReminderDate() != null
                                 && !reminder.getReminderDate().isBefore(now))
                         .limit(LIMIT)
-                        .map(reminder -> new DashboardDTOOut.ReminderItem(
-                                reminder.getId(),
-                                reminder.getMessage(),
-                                reminder.getReminderDate(),
-                                reminder.getRecipient() != null ? reminder.getRecipient().getName() : null,
-                                reminder.getStatus()))
+                        .map(reminder -> {
+                            DashboardDTOOut.ReminderItem item = new DashboardDTOOut.ReminderItem();
+                            item.setId(reminder.getId());
+                            if (reminder.getMessage() != null) {
+                                item.setMessage(reminder.getMessage());
+                            }
+                            item.setReminderDate(reminder.getReminderDate());
+                            if (reminder.getRecipient() != null) {
+                                item.setRecipientName(reminder.getRecipient().getName());
+                            }
+                            return item;
+                        })
                         .toList();
 
-        long activePlansCount = giftPlanRepository
-                .findGiftPlanByUserIdAndOccasionDateAfter(userId, LocalDate.now())
-                .size();
+        long activePlansCount = giftPlanRepository.countActivePlansByUserId(userId, LocalDate.now());
 
         long pendingGroupGiftVotes = groupGiftRepository.findByOwner_IdOrderByCreatedAtDesc(userId).stream()
                 .filter(groupGift -> "OPEN".equalsIgnoreCase(groupGift.getStatus()))
@@ -64,13 +68,15 @@ public class DashboardService {
 
         PremiumStatusDTOOut premiumStatus = premiumService.getPremiumStatus(userId);
 
-        return new DashboardDTOOut(
-                activePlansCount,
-                pendingGroupGiftVotes,
-                premiumStatus.isPremium(),
-                premiumStatus.getActivatedAt(),
-                upcomingReminders,
-                recentGifts
-        );
+        DashboardDTOOut dashboard = new DashboardDTOOut();
+        dashboard.setActivePlansCount(activePlansCount);
+        dashboard.setPendingGroupGiftVotes(pendingGroupGiftVotes);
+        dashboard.setPremium(premiumStatus.isPremium());
+        if (premiumStatus.getActivatedAt() != null) {
+            dashboard.setPremiumActivatedAt(premiumStatus.getActivatedAt());
+        }
+        dashboard.setUpcomingReminders(upcomingReminders);
+        dashboard.setRecentGifts(recentGifts);
+        return dashboard;
     }
 }

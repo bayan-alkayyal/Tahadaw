@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.tahadaw.Api.ApiException;
 import org.example.tahadaw.Api.PremiumRequiredException;
 import org.example.tahadaw.DTO.OUT.PremiumStatusDTOOut;
+import org.example.tahadaw.Mapper.ResponseMapper;
 import org.example.tahadaw.Model.Payment;
 import org.example.tahadaw.Model.PremiumAccess;
 import org.example.tahadaw.Model.User;
@@ -26,12 +27,12 @@ public class PremiumService {
                 .orElseThrow(() -> new ApiException("User not found."));
 
         if (!Boolean.TRUE.equals(user.getIsPremium())) {
-            return new PremiumStatusDTOOut(false, null);
+            return ResponseMapper.toPremiumStatusDto(false, null);
         }
 
         return premiumAccessRepository.findByUser(user)
-                .map(access -> new PremiumStatusDTOOut(true, access.getActivatedAt()))
-                .orElse(new PremiumStatusDTOOut(true, null));
+                .map(access -> ResponseMapper.toPremiumStatusDto(true, access.getActivatedAt()))
+                .orElse(ResponseMapper.toPremiumStatusDto(true, null));
     }
 
     public void requirePremium(User user) {

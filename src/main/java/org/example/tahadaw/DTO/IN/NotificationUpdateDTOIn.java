@@ -12,5 +12,4 @@ public class NotificationUpdateDTOIn {
     private String title;
     private String message;
     private String type;
-    private String status;
 }

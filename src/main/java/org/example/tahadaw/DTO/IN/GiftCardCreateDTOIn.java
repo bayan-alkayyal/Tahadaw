@@ -22,5 +22,4 @@ public class GiftCardCreateDTOIn {
     private String linkType;
     private String linkUrl;
     private String sentToEmail;
-    private String status;
 }
