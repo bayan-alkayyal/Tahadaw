@@ -7,12 +7,11 @@ voting, tracks gift history, and sends reminders — all powered by OpenAI and a
 premium features.
 
 > **نبذة بالعربية**
-> **تهدّاو** هو نظام (Backend) مبني على Spring Boot يساعد المستخدم على تخطيط الهدية المثالية.
-> ينشئ ملفًا تعريفيًا غنيًا عن المُهدى إليه، ويطرح أسئلة إلزامية وأسئلة ذكية مولّدة بالذكاء الاصطناعي،
-> ثم يقترح أفكار هدايا ويبحث عن منتجات حقيقية، ويولّد رسائل تهنئة وبطاقات هدايا مميّزة مع رمز QR،
-> ويدير التصويت على الهدايا الجماعية، ويتتبّع سجل الهدايا، ويرسل التذكيرات — مدعومًا بالذكاء الاصطناعي
-> من OpenAI ونظام دفع Moyasar للميزات المدفوعة (Premium).
-
+> تهادوا هو نظام مبني على Spring Boot يساعد المستخدم على تخطيط الهدية المثالية.
+ينشئ ملفًا تعريفيًا غنيًا عن المستلم، ويطرح أسئلة إلزامية وأسئلة ذكية مولّدة بالذكاء الاصطناعي،
+ثم يقترح أفكار هدايا مناسبة، ويبحث عن منتجات حقيقية، ويولّد رسائل تهنئة وبطاقات هدايا مميّزة مع رمز QR،
+ويدير التصويت على الهدايا الجماعية، ويتتبّع سجل الهدايا، ويرسل التذكيرات — مدعومًا بالذكاء الاصطناعي
+من OpenAI ونظام دفع Moyasar للميزات المدفوعة (Premium).
 ---
 
 ## Live API (AWS)
@@ -219,99 +218,250 @@ Interactive UI mockups for the Tahadaw platform (Arabic RTL dashboard and user f
 ![Tahadaw Entity Relationship Diagram](docs/images/tahadaw-erd.png)
 
 ---
-
 ## Team Contributions
+## Bayan Saleh Contributions
 
-### Saud Shafie
+The following **34 API paths** make up Bayan Saleh's flows:
 
-The following 34 endpoints make up Saud's flows (Premium Payment, Gift Messages, Gift Cards, Surprise
-Plan, Gift History) plus the cross-cutting Dashboard and Recipient Insights.
-
-**Premium Payment (Moyasar)**
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/payments/premium` | Start a one-time premium payment |
-| `GET` | `/api/v1/payments/my` | List my payments |
-| `GET` | `/api/v1/premium/status` | Get my premium status |
-| `POST` | `/api/v1/payments/webhook/moyasar` | Moyasar payment webhook (public) |
-| `GET` | `/api/v1/payments/moyasar-status/{id}` | Check a Moyasar payment status |
-
-**Gift Messages**
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/gift-messages/generate` | AI-generate a standalone gift message |
-| `POST` | `/api/v1/gift-messages/generate-from-plan/{giftPlanId}` | AI message from a gift plan |
-| `POST` | `/api/v1/gift-messages/manual` | Create a manual gift message |
-| `PUT` | `/api/v1/gift-messages/{messageId}` | Update a gift message |
-| `GET` | `/api/v1/gift-messages/my` | List my gift messages |
-| `GET` | `/api/v1/gift-messages/{messageId}` | Get one gift message |
-
-**Gift Card (Premium)**
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/gift-cards` | Create a gift card |
-| `GET` | `/api/v1/gift-cards/my` | List my gift cards |
-| `GET` | `/api/v1/gift-cards/{giftCardId}` | Get one gift card |
-| `PUT` | `/api/v1/gift-cards/{giftCardId}` | Update a gift card |
-| `POST` | `/api/v1/gift-cards/{giftCardId}/regenerate` | Regenerate the card image |
-| `GET` | `/api/v1/gift-cards/{giftCardId}/image` | View card as PNG |
-| `POST` | `/api/v1/gift-cards/{giftCardId}/send-email` | Email the gift card |
-| `DELETE` | `/api/v1/gift-cards/{giftCardId}` | Delete a gift card |
-| `GET` | `/api/v1/gift-cards/{giftCardId}/download` | Download card as PDF (or PNG) |
-
-**Surprise Plan (Premium)**
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/gift-plans/{giftPlanId}/surprise-plan/generate` | Generate AI surprise plan |
-| `POST` | `/api/v1/gift-plans/{giftPlanId}/surprise-plan/regenerate` | Regenerate surprise plan |
-| `PUT` | `/api/v1/gift-plans/{giftPlanId}/surprise-plan` | Update surprise plan |
-| `DELETE` | `/api/v1/gift-plans/{giftPlanId}/surprise-plan` | Delete surprise plan |
-| `GET` | `/api/v1/gift-plans/{giftPlanId}/surprise-plan` | Get surprise plan |
-
-**Gift History**
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/gift-history/from-product/{selectedProductId}` | Log a gift from a selected product |
-| `PUT` | `/api/v1/gift-history/from-product/{selectedProductId}` | Edit a gift history log |
-| `DELETE` | `/api/v1/gift-history/from-product/{selectedProductId}` | Delete a gift history log |
-| `GET` | `/api/v1/gift-history/from-product/{selectedProductId}` | Get gift history for a product |
-| `GET` | `/api/v1/gift-history/my` | List my gift history |
-| `GET` | `/api/v1/gift-history/summary` | Gift history summary |
-| `GET` | `/api/v1/gift-history/spending-stats` | Spending stats with date filters |
-
-**Dashboard & Insights**
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/dashboard` | Aggregated home-screen dashboard |
-| `GET` | `/api/v1/recipients/{recipientId}/insights` | Per-recipient gifting insights |
-
-#### Example requests (Saud Shafie endpoints)
-
-**Spending stats (date-filtered)**
-
-```http
-GET /api/v1/gift-history/spending-stats?from=2026-01-01&to=2026-12-31
+```text
+Flow 1  — Users
+Flow 2  — Recipients
+Flow 4  — Admin Required Questions
+Flow 10 — Gift Quality Check
+Flow 14 — Group Gifts & Voting
+Flow 15 — Reminders
 ```
 
-**Download a gift card as PDF**
+### Endpoint count
 
-```http
-GET /api/v1/gift-cards/1/download?format=pdf
-```
+| Type | Count |
+|------|------:|
+| CRUD / Basic endpoints | 22 |
+| Extra feature endpoints | 12 |
+| **Total API paths** | **34** |
 
-**Aggregated dashboard**
-
-```http
-GET /api/v1/dashboard
-```
+> The reminder scheduler and WhatsApp sending job are background features. They are part of the Reminders flow, but they are not counted as API paths because they run automatically with `@Scheduled`.
 
 ---
+
+## Endpoints Summary
+
+### Flow 1 — Users
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/users/register` | Register a new user |
+| `GET` | `/api/v1/users/get` | List users |
+| `PUT` | `/api/v1/users/update` | Update user profile |
+| `DELETE` | `/api/v1/users/delete` | Delete user account |
+
+### Flow 2 — Recipients
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/recipients/add/{userId}` | Add a recipient for a user |
+| `GET` | `/api/v1/recipients/get` | List all recipients |
+| `GET` | `/api/v1/recipients/get-by-user-id/{userId}` | List recipients for a specific user |
+| `GET` | `/api/v1/recipients/get/{userId}/{recipientId}` | Get one recipient owned by a user |
+| `PUT` | `/api/v1/recipients/update/{userId}/{recipientId}` | Update a recipient |
+| `DELETE` | `/api/v1/recipients/delete/{userId}/{recipientId}` | Delete a recipient |
+
+### Flow 4 — Admin Required Questions
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/required-questions/add` | Add a required question |
+| `GET` | `/api/v1/required-questions/get` | List required questions |
+| `PUT` | `/api/v1/required-questions/update/{questionId}` | Update a required question |
+| `DELETE` | `/api/v1/required-questions/delete/{questionId}` | Delete a required question |
+| `PUT` | `/api/v1/required-questions/disable/{questionId}` | Disable a required question without deleting it |
+
+### Flow 10 — Gift Quality Check
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/gift-quality-checks/add/{userId}/{recipientId}` | Run an AI gift quality check |
+| `GET` | `/api/v1/gift-quality-checks/recipients/{recipientId}` | List quality checks for a recipient |
+| `GET` | `/api/v1/gift-quality-checks/get-one/{checkId}` | Get one quality check result |
+
+### Flow 15 — Reminders
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/reminders/add/{userId}/{recipientId}` | Create a reminder |
+| `GET` | `/api/v1/reminders/get` | List all reminders |
+| `GET` | `/api/v1/reminders/get-my/{userId}` | List reminders for one user |
+| `PUT` | `/api/v1/reminders/update/{reminderId}` | Update a reminder |
+| `DELETE` | `/api/v1/reminders/delete/{reminderId}` | Delete a reminder |
+
+**Extra background behavior:** the reminder service uses `@Scheduled` to check due reminders and send WhatsApp notifications through Twilio.
+
+### Flow 14 — Group Gifts & Voting
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/group-gifts?userId=` | Create a group gift poll |
+| `GET` | `/api/v1/group-gifts/my?userId=` | List my group gifts |
+| `GET` | `/api/v1/group-gifts/{groupGiftId}?userId=` | Get one group gift |
+| `POST` | `/api/v1/group-gifts/{groupGiftId}/options?userId=` | Add a manual gift option |
+| `POST` | `/api/v1/group-gifts/{groupGiftId}/options/generate-ai?userId=` | Generate gift options using AI |
+| `GET` | `/api/v1/group-gifts/{groupGiftId}/options` | List gift options for a group gift |
+| `POST` | `/api/v1/group-gifts/{groupGiftId}/invites?userId=` | Send voting invites by email |
+| `PUT` | `/api/v1/group-gifts/{groupGiftId}/close-voting?userId=` | Close voting and store the winning option |
+| `GET` | `/api/v1/group-gifts/{groupGiftId}/results?userId=` | View vote results |
+| `GET` | `/api/v1/public/group-gifts/vote/{token}` | Public vote page data by invite token |
+| `POST` | `/api/v1/public/group-gifts/vote/{token}` | Submit a vote by invite token |
+
+
+**Extra notification behavior:** when voting invites are created, the system generates a unique invite token and sends an email notification to each invitee using Spring Mail, informing them that they have been invited to vote on the group gift.
+
+---
+
+## Example Requests
+
+### Register user
+
+```http
+POST /api/v1/users/register
+Content-Type: application/json
+
+{
+  "username": "bayan_user",
+  "password": "Secure!2026pass",
+  "fullName": "Bayan Saleh",
+  "email": "bayan@example.com",
+  "phoneNumber": "0500000000"
+}
+```
+
+### Add recipient
+
+```http
+POST /api/v1/recipients/add/1
+Content-Type: application/json
+
+{
+  "name": "سارة",
+  "relationship": "أخت",
+  "age": 22,
+  "gender": "أنثى",
+  "interests": "القراءة، القهوة، السفر",
+  "hobbies": "التصوير والكتابة",
+  "favoriteColors": "الوردي، الأبيض",
+  "favoriteBrands": "أبل، سيفورا",
+  "dislikes": "العطور القوية",
+  "personalityStyle": "هادئة وتحب التفاصيل",
+  "sizeInfo": "M",
+  "notes": "تستعد لحفل تخرجها"
+}
+```
+
+### Run AI gift quality check
+
+```http
+POST /api/v1/gift-quality-checks/add/1/1
+Content-Type: application/json
+
+{
+  "giftName": "عطر عودي",
+  "giftDescription": "عطر عود شرقي مناسب للمناسبات المسائية",
+  "price": 499,
+  "occasionType": "عيد ميلاد"
+}
+```
+
+### Get gift quality check result
+
+```http
+GET /api/v1/gift-quality-checks/{{qualityCheckId}}
+```
+
+```json
+{
+  "giftName": "عطر عودي",
+  "giftDescription": "عطر عود شرقي مناسب للمناسبات المسائية",
+  "price": 499.0,
+  "occasionType": "عيد ميلاد",
+  "suitability": "محايد",
+  "strengths": "الهدية مرتبطة باهتمامات سارة لأنها تحب العطور، كما أن العطر العودي يناسب الطابع الشرقي وقد يكون أنيقًا ومناسبًا لمناسبة عيد ميلاد، خصوصًا مع شخصيتها الكلاسيكية وعلاقتك القريبة بها كأخت.",
+  "weaknesses": "سارة لا تحب العطور القوية، وعطور العود غالبًا تكون ثقيلة وواضحة، لذلك قد لا تناسب ذوقها أو قد تستخدمها نادرًا فقط. كذلك لا يوجد سجل هدايا سابق يوضح هل تفضل هذا النوع من العطور أم لا.",
+  "aiAdvice": "إذا كنت متأكدًا أن هذا العطر العودي ناعم وغير قوي فقد يكون اختيارًا جيدًا، لكن أنصحك باختيار عطر أنعم وكلاسيكي، أو إضافة بطاقة من زارا أو سيفورا حتى تتمكن سارة من اختيار ما يناسبها إذا لم يناسبها العطر.",
+  "createdAt": "2026-06-23T17:22:28"
+}
+```
+
+### Get AI-generated group-gift options
+
+```http
+GET /api/v1/group-gifts/get-options/{{groupGiftId}}
+```
+
+```json
+[
+  {
+    "id": 1,
+    "giftName": "طقم عطر ناعم من سيفورا",
+    "description": "مجموعة عطرية خفيفة وراقية تشمل عطرًا ناعمًا مع لوشن أو رذاذ للجسم، وتأتي عادة بتغليف أنيق هدية.",
+    "priceBand": "٢٥٠ - ٣٥٠ ريال",
+    "reason": "يتناسب اهتمام سارة بالعطور مع مراعاة أنها لا تفضل الروائح القوية، كما أن سيفورا من علامات محببة لها."
+  },
+  {
+    "id": 2,
+    "giftName": "مجموعة أدوات رسم فاخرة",
+    "description": "حقيبة متكاملة تحتوي على ألوان مائية أو أكريليك، فرش عالية الجودة، ودفتر رسم، وتغلف بطريقة أنيقة تناسب هواية الرسم وأسلوب سارة الكلاسيكي.",
+    "priceBand": "٢٠٠ - ٣٠٠ ريال",
+    "reason": "اختيار عملي ومميز لهواية الرسم ويشجعها على تطوير جانبها الفني بطريقة تناسب شخصيتها الكلاسيكية."
+  },
+  {
+    "id": 3,
+    "giftName": "قارئ إلكتروني للكتب",
+    "description": "جهاز خفيف لقراءة الكتب الإلكترونية مع شاشة مريحة للعين وسعة مناسبة لحفظ مكتبة صغيرة متنوعة.",
+    "priceBand": "٤٥٠ - ٦٥٠ ريال",
+    "reason": "هدية مناسبة لمحبة القراءة وتمنحها تجربة مريحة ومنظمة للاستمتاع بالكتب في أي وقت."
+  }
+]
+```
+
+
+
+### Send group-gift invites
+
+```http
+POST /api/v1/group-gifts/send-invite/{{groupGiftId}}
+Content-Type: application/json
+
+[
+  {
+    "inviteeName": "شهد",
+    "inviteeEmail": "sho.chi.09@gmail.com"
+  }
+]
+```
+
+```json
+[
+  {
+    "id": 1,
+    "inviteeName": "شهد",
+    "inviteeEmail": "sho.chi.09@gmail.com",
+    "token": "66ffa12de4ea4a37b3d5555ea9883d87",
+    "status": "PENDING"
+  }
+]
+```
+
+
+### Submit public vote
+
+```http
+POST /api/v1/public/group-gifts/vote/{token}
+Content-Type: application/json
+
+{
+  "optionId": 1
+}
+```
+
 
 ## API Base URL
 
