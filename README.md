@@ -477,7 +477,7 @@ Errors are returned with HTTP 4xx/5xx and a message body (`spring.web.error.incl
 
 ## Postman API Documentation
 
-**[Tahadaw — Full System Flows (Postman API Docs)](https://documenter.getpostman.com/view/54224474/2sBXwwm7kY#1b2a0212-71da-4b20-95f0-bf480fa27d16)**
+**[Tahadaw — Full System Flows (Postman API Docs)](https://documenter.getpostman.com/view/54223024/2sBXwwooJF)**
 
 **Import the collection locally:**
 
